@@ -1,3 +1,18 @@
+# Chiptracker
+
+Random changes to (http://www.linusakesson.net/hardware/chiptune.php)
+
+
+## Major changes
+
+Squashed PLAY/EDIT/IDLE modes down into one, because it felt difficult to
+move around nimbly. 
+
+TODO:  Add some extra info in song column, to show Track and Transposition columns.
+
+
+## Old Documentation
+
 Hi!
 
 This is the tracker I used in the hardware chiptune project
