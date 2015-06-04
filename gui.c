@@ -53,11 +53,10 @@ struct track track[256], tclip;
 struct songline song[256];
 
 enum {
-	PM_IDLE,
 	PM_PLAY,
 	PM_EDIT
 };
-int playmode = PM_IDLE;
+int playmode = PM_EDIT;
 
 int hexdigit(char c) {
 	if(c >= '0' && c <= '9') return c - '0';
@@ -274,7 +273,9 @@ void drawsonged(int x, int y, int height) {
 				if(j != 3) addch(' ');
 			}
 			attrset(A_NORMAL);
-			if(playsong && songpos == (i + 1)) addch('*');
+            // error here?
+			if(playsong && songpos == (i)) addch('*');
+            // error here??
 		}
 	}
 }
@@ -354,26 +355,18 @@ void drawinstred(int x, int y, int height) {
 
 void drawmodeinfo(int x, int y) {
 	switch(playmode) {
-		case PM_IDLE:
-			if(currtab == 2) {
-				mvaddstr(y, x, "PLAY         IDLE space-> EDIT");
-			} else {
-				mvaddstr(y, x, "PLAY <-enter IDLE space-> EDIT");
-			}
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 13, "IDLE");
-			attrset(A_NORMAL);
-			break;
 		case PM_PLAY:
-			mvaddstr(y, x, "PLAY space-> IDLE         EDIT");
+			mvaddstr(y, x, "PLAY enter-> EDIT");
+			mvaddstr(y+1, x, "space [(re)start]");
 			attrset(A_REVERSE);
 			mvaddstr(y, x + 0, "PLAY");
 			attrset(A_NORMAL);
 			break;
 		case PM_EDIT:
-			mvaddstr(y, x, "PLAY         IDLE <-space EDIT");
+			mvaddstr(y, x,   "enter [stop all]");
+			mvaddstr(y+1, x, "space [(re)start play]");
 			attrset(A_REVERSE);
-			mvaddstr(y, x + 26, "EDIT");
+			//mvaddstr(y, x, "EDIT");
 			attrset(A_NORMAL);
 			break;
 	}
@@ -545,8 +538,8 @@ void exportdata(FILE *f, int maxtrack, int *resources) {
 }
 
 void export() {
-	FILE *f = fopen("exported.c", "w");
-	FILE *hf = fopen("exported.h", "w");
+	FILE *f = fopen("song.c", "w");
+	FILE *hf = fopen("song.h", "w");
 	int i, j;
 	int maxtrack = 0;
 	int resources[256];
@@ -562,7 +555,7 @@ void export() {
 		}
 	}
 
-	fprintf(f, "\tstatic const uint8_t \tsongdata[] = {\n\n");
+	fprintf(f, "const unsigned char \tsongdata[] = {\n\n");
 
 	fprintf(hf, "#define MAXTRACK\t0x%02x\n", maxtrack);
 	fprintf(hf, "#define SONGLEN\t\t0x%02x\n", songlen);
@@ -576,7 +569,7 @@ void export() {
 	fprintf(f, "\n");
 
 	exportdata(f, maxtrack, resources);
-	fprintf(f, "}\n");
+	fprintf(f, "};\n");
 
 	fclose(f);
 	fclose(hf);
@@ -586,27 +579,34 @@ void handleinput() {
 	int c, x;
 	
 	if((c = getch()) != ERR) switch(c) {
+		case ' ':
+            silence();
+            //playmode = PM_PLAY;
+            if(currtab == 1) {
+                startplaytrack(currtrack);
+            } else {
+                startplaysong(songy);
+                //TODO( add * to song to show where it is)
+            }
+			break;
 		case 10:
 		case 13:
-			if(currtab != 2) {
-				playmode = PM_PLAY;
-				if(currtab == 1) {
-					startplaytrack(currtrack);
-				} else if(currtab == 0) {
-					startplaysong(songy);
-				}
-			}
-			break;
-		case ' ':
 			silence();
-			if(playmode == PM_IDLE) {
-				playmode = PM_EDIT;
-			} else {
-				playmode = PM_IDLE;
-			}
+//			if(playmode == PM_PLAY) {
+//				playmode = PM_EDIT;
+//			} else {
+//				playmode = PM_PLAY;
+//			}
 			break;
+        case 'N' - '@':
+        case 'N':
 		case 9:
 			currtab++;
+			currtab %= 3;
+			break;
+		case 'P' - '@':
+		case 'P':
+			currtab--;
 			currtab %= 3;
 			break;
 		case 'E' - '@':
@@ -844,7 +844,8 @@ void handleinput() {
 						}
 					}
 				}
-			} else if(playmode == PM_IDLE) {
+			} 
+            else if(playmode == PM_PLAY) {
 				x = freqkey(c);
 
 				if(x > 0) {
@@ -863,14 +864,14 @@ void drawgui() {
 	int instrcols[] = {0, 2, 3};
 
 	erase();
-	mvaddstr(0, 0, "music chip tracker 0.1 by lft");
+	mvaddstr(0, 0, "music chip tracker 0.1 by lft, mod by ible");
 	drawmodeinfo(cols - 30, 0);
+	mvaddstr(3, cols - 30, "^W)rite ^E)xit");
 	snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
-	mvaddstr(2, cols - 14, buf);
-	mvaddstr(3, cols - 14, "^W)rite ^E)xit");
+	mvaddstr(5, cols - 12, buf);
 
 	snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
-	mvaddstr(2, 15, buf);
+	mvaddstr(3, 15, buf);
 
 	mvaddstr(5, 0, "Song");
 	drawsonged(0, 6, lines - 12);
