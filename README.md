@@ -41,7 +41,7 @@ to enter notes. The keyboard layout is adapted for a US qwerty keymap. You can
 edit gui.c to change this to fit a Dvorak keymap instead.
 
 Press ^E (control-E) to exit without saving. Press ^W ("write") to save. Press
-# to optimize the song (remove unused tracks, move tracks together) and % to
+\# to optimize the song (remove unused tracks, move tracks together) and % to
 export the song into a packed format. (% will always export to two files called
 "exported.s" and "exported.h" in the current working directory).
 
