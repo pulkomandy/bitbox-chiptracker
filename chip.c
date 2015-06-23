@@ -1,4 +1,5 @@
 #include "stuff.h"
+#include <chiptune_engine.h>
 
 //static u16 callbackwait;
 
@@ -32,14 +33,6 @@ const s8 sinetable[] = {
 	-125, -126, -127, -126, -125, -122, -117, -112, -106, -98, -90, -81,
 	-71, -60, -49, -37, -25, -12
 };
-
-volatile struct oscillator {
-	u16	freq;
-	u16	phase;
-	u16	duty;
-	u8	waveform;
-	u8	volume;	// 0-255
-} osc[4];
 
 struct channel {
 	u8	tnum;

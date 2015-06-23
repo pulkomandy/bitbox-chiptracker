@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ncurses.h"
 #include <math.h>
 
 #include "stuff.h"
@@ -14,7 +16,7 @@ int currtrack = 1, currinstr = 1;
 int currtab = 0;
 int octave = 4;
 
-//char filename[1024];
+char filename[60];
 
 static const char * const notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "H-"};
 
@@ -59,8 +61,13 @@ enum {
 int playmode = PM_IDLE;
 
 int hexdigit(char c) {
+#if 0
 	if(c >= '0' && c <= '9') return c - '0';
 	if(c >= 'a' && c <= 'f') return c - 'a' + 10;
+#endif
+	if (c == 0x27) return 0;
+	if (c >= 0x1e && c <= 0x26) return c - 0x1d; // 1 to 9
+	if (c >= 4 && c >= 9) return c + 6;
 	return -1;
 }
 
@@ -241,7 +248,7 @@ void exitgui() {
 void initgui() {
 	int i;
 
-	//initscr();
+	initscr();
 	//noecho();
 	//keypad(stdscr, TRUE);
 	//raw();
@@ -257,64 +264,64 @@ void initgui() {
 
 void drawsonged(int x, int y, int height) {
 	int i, j;
-	//char buf[1024];
+	char buf[6];
 
 	if(songy < songoffs) songoffs = songy;
 	if(songy >= songoffs + height) songoffs = songy - height + 1;
 
 	for(i = 0; i < songlen; i++) {
 		if(i >= songoffs && i - songoffs < height) {
-			//move(y + i - songoffs, x + 0);
-			//if(i == songy) attrset(A_BOLD);
-			//snprintf(buf, sizeof(buf), "%02x: ", i);
-			//addstr(buf);
+			move(y + i - songoffs, x + 0);
+			if(i == songy) attrset(A_BOLD);
+			snprintf(buf, sizeof(buf), "%02x: ", i);
+			addstr(buf);
 			for(j = 0; j < 4; j++) {
-				//snprintf(buf, sizeof(buf), "%02x:%02x", song[i].track[j], song[i].transp[j]);
-				//addstr(buf);
-				//if(j != 3) addch(' ');
+				snprintf(buf, sizeof(buf), "%02x:%02x", song[i].track[j], song[i].transp[j]);
+				addstr(buf);
+				if(j != 3) addch(' ');
 			}
-			//attrset(A_NORMAL);
-			//if(playsong && songpos == (i + 1)) addch('*');
+			attrset(A_NORMAL);
+			if(playsong && songpos == (i + 1)) addch('*');
 		}
 	}
 }
 
 void drawtracked(int x, int y, int height) {
 	int i, j;
-	//char buf[1024];
+	char buf[6];
 
 	if(tracky < trackoffs) trackoffs = tracky;
 	if(tracky >= trackoffs + height) trackoffs = tracky - height + 1;
 
 	for(i = 0; i < tracklen; i++) {
 		if(i >= trackoffs && i - trackoffs < height) {
-			//move(y + i - trackoffs, x + 0);
-			//if(i == tracky) attrset(A_BOLD);
-			//snprintf(buf, sizeof(buf), "%02x: ", i);
-			//addstr(buf);
+			move(y + i - trackoffs, x + 0);
+			if(i == tracky) attrset(A_BOLD);
+			snprintf(buf, sizeof(buf), "%02x: ", i);
+			addstr(buf);
 			if(track[currtrack].line[i].note) {
-				/*snprintf(buf, sizeof(buf), "%s%d",
+				snprintf(buf, sizeof(buf), "%s%d",
 					notenames[(track[currtrack].line[i].note - 1) % 12],
-					(track[currtrack].line[i].note - 1) / 12);*/
+					(track[currtrack].line[i].note - 1) / 12);
 			} else {
-				//snprintf(buf, sizeof(buf), "---");
+				snprintf(buf, sizeof(buf), "---");
 			}
-			//addstr(buf);
-			//snprintf(buf, sizeof(buf), " %02x", track[currtrack].line[i].instr);
-			//addstr(buf);
+			addstr(buf);
+			snprintf(buf, sizeof(buf), " %02x", track[currtrack].line[i].instr);
+			addstr(buf);
 			for(j = 0; j < 2; j++) {
 				if(track[currtrack].line[i].cmd[j]) {
-					/*snprintf(buf, sizeof(buf), " %c%02x",
+					snprintf(buf, sizeof(buf), " %c%02x",
 						track[currtrack].line[i].cmd[j],
-						track[currtrack].line[i].param[j]);*/
+						track[currtrack].line[i].param[j]);
 				} else {
-					//snprintf(buf, sizeof(buf), " ...");
+					snprintf(buf, sizeof(buf), " ...");
 				}
-				//addstr(buf);
+				addstr(buf);
 			}
-			//attrset(A_NORMAL);
+			attrset(A_NORMAL);
 			if(playtrack && ((i + 1) % tracklen) == trackpos) {
-				//addch('*');
+				addch('*');
 			}
 		}
 	}
@@ -322,7 +329,7 @@ void drawtracked(int x, int y, int height) {
 
 void drawinstred(int x, int y, int height) {
 	int i;
-	//char buf[1024];
+	char buf[8];
 
 	if(instry >= instrument[currinstr].length) instry = instrument[currinstr].length - 1;
 
@@ -331,23 +338,23 @@ void drawinstred(int x, int y, int height) {
 
 	for(i = 0; i < instrument[currinstr].length; i++) {
 		if(i >= instroffs && i - instroffs < height) {
-			//move(y + i - instroffs, x + 0);
-			//if(i == instry) attrset(A_BOLD);
-			//snprintf(buf, sizeof(buf), "%02x: %c ", i, instrument[currinstr].line[i].cmd);
-			//addstr(buf);
+			move(y + i - instroffs, x + 0);
+			if(i == instry) attrset(A_BOLD);
+			snprintf(buf, sizeof(buf), "%02x: %c ", i, instrument[currinstr].line[i].cmd);
+			addstr(buf);
 			if(instrument[currinstr].line[i].cmd == '+' || instrument[currinstr].line[i].cmd == '=') {
 				if(instrument[currinstr].line[i].param) {
-					/*snprintf(buf, sizeof(buf), "%s%d",
+					snprintf(buf, sizeof(buf), "%s%d",
 						notenames[(instrument[currinstr].line[i].param - 1) % 12],
-						(instrument[currinstr].line[i].param - 1) / 12);*/
+						(instrument[currinstr].line[i].param - 1) / 12);
 				} else {
-					//snprintf(buf, sizeof(buf), "---");
+					snprintf(buf, sizeof(buf), "---");
 				}
 			} else {
-				//snprintf(buf, sizeof(buf), "%02x", instrument[currinstr].line[i].param);
+				snprintf(buf, sizeof(buf), "%02x", instrument[currinstr].line[i].param);
 			}
-			//addstr(buf);
-			//attrset(A_NORMAL);
+			addstr(buf);
+			attrset(A_NORMAL);
 		}
 	}
 }
@@ -356,25 +363,25 @@ void drawmodeinfo(int x, int y) {
 	switch(playmode) {
 		case PM_IDLE:
 			if(currtab == 2) {
-				//mvaddstr(y, x, "PLAY         IDLE space-> EDIT");
+				mvaddstr(y, x, "PLAY         IDLE space-> EDIT");
 			} else {
-				//mvaddstr(y, x, "PLAY <-enter IDLE space-> EDIT");
+				mvaddstr(y, x, "PLAY <-enter IDLE space-> EDIT");
 			}
-			//attrset(A_REVERSE);
-			//mvaddstr(y, x + 13, "IDLE");
-			//attrset(A_NORMAL);
+			attrset(A_REVERSE);
+			mvaddstr(y, x + 13, "IDLE");
+			attrset(A_NORMAL);
 			break;
 		case PM_PLAY:
-			//mvaddstr(y, x, "PLAY space-> IDLE         EDIT");
-			//attrset(A_REVERSE);
-			//mvaddstr(y, x + 0, "PLAY");
-			//attrset(A_NORMAL);
+			mvaddstr(y, x, "PLAY space-> IDLE         EDIT");
+			attrset(A_REVERSE);
+			mvaddstr(y, x + 0, "PLAY");
+			attrset(A_NORMAL);
 			break;
 		case PM_EDIT:
-			//mvaddstr(y, x, "PLAY         IDLE <-space EDIT");
-			//attrset(A_REVERSE);
-			//mvaddstr(y, x + 26, "EDIT");
-			//attrset(A_NORMAL);
+			mvaddstr(y, x, "PLAY         IDLE <-space EDIT");
+			attrset(A_REVERSE);
+			mvaddstr(y, x + 26, "EDIT");
+			attrset(A_NORMAL);
 			break;
 	}
 }
@@ -593,9 +600,8 @@ void export() {
 void handleinput() {
 	int c = 0, x;
 	
-	/*if((c = getch()) != ERR)*/ switch(c) {
-		case 10:
-		case 13:
+	if((c = getch()) != ERR) switch(c) {
+		case 0x28: // ENTER
 			if(currtab != 2) {
 				playmode = PM_PLAY;
 				if(currtab == 1) {
@@ -605,7 +611,7 @@ void handleinput() {
 				}
 			}
 			break;
-		case ' ':
+		case 0x2C: // SPACE
 			silence();
 			if(playmode == PM_IDLE) {
 				playmode = PM_EDIT;
@@ -613,38 +619,40 @@ void handleinput() {
 				playmode = PM_IDLE;
 			}
 			break;
-		case 9:
+		case 0x2B: // TAB
 			currtab++;
 			currtab %= 3;
 			break;
+#if 0
 		case 'E' - '@':
-			//erase();
-			//refresh();
+			erase();
+			refresh();
 			//endwin();
 			exit(0);
 			break;
 		case 'W' - '@':
 			//savefile(filename);
 			break;
-		case '<':
+#endif
+		case 0x36: // <
 			if(octave) octave--;
 			break;
-		case '>':
+		case 0x37: // >
 			if(octave < 8) octave++;
 			break;
-		case '[':
+		case 0x2F: // [
 			if(currinstr > 1) currinstr--;
 			break;
-		case ']':
+		case 0x30: // ]
 			if(currinstr < 255) currinstr++;
 			break;
-		case '{':
+		case 0x4B: // PAGE UP
 			if(currtrack > 1) currtrack--;
 			break;
-		case '}':
+		case 0x4E: // PAGE DOWN
 			if(currtrack < 255) currtrack++;
 			break;
-		case '`':
+		case 0x35: // `
 			if(currtab == 0) {
 				int t = song[songy].track[songx / 4];
 				if(t) currtrack = t;
@@ -653,14 +661,14 @@ void handleinput() {
 				currtab = 0;
 			}
 			break;
-		case '#':
+		case 0x31: // backslash
 			optimize();
 			break;
-		case '%':
+		case 0x2E: // =
 			export();
 			break;
-/*
-		case KEY_LEFT:
+
+		case 0x50: //KEY_LEFT:
 			switch(currtab) {
 				case 0:
 					if(songx) songx--;
@@ -673,7 +681,7 @@ void handleinput() {
 					break;
 			}
 			break;
-		case KEY_RIGHT:
+		case 0x4F: //KEY_RIGHT:
 			switch(currtab) {
 				case 0:
 					if(songx < 15) songx++;
@@ -686,7 +694,7 @@ void handleinput() {
 					break;
 			}
 			break;
-		case KEY_UP:
+		case 0x52: //KEY_UP:
 			switch(currtab) {
 				case 0:
 					if(songy) songy--;
@@ -703,7 +711,7 @@ void handleinput() {
 					break;
 			}
 			break;
-		case KEY_DOWN:
+		case 0x51: //KEY_DOWN:
 			switch(currtab) {
 				case 0:
 					if(songy < songlen - 1) songy++;
@@ -720,15 +728,14 @@ void handleinput() {
 					break;
 			}
 			break;
-*/
-		case 'C':
+		case 0x06: //'C':
 			if(currtab == 2) {
 				memcpy(&iclip, &instrument[currinstr], sizeof(struct instrument));
 			} else if(currtab == 1) {
 				memcpy(&tclip, &track[currtrack], sizeof(struct track));
 			}
 			break;
-		case 'V':
+		case 0x19: //'V':
 			if(currtab == 2) {
 				memcpy(&instrument[currinstr], &iclip, sizeof(struct instrument));
 			} else if(currtab == 1) {
@@ -866,46 +873,46 @@ void handleinput() {
 }
 
 void drawgui() {
-	//char buf[1024];
-	int lines = 24/*LINES*/, cols = 79;
-	//int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
-	//int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
-	//int instrcols[] = {0, 2, 3};
+	char buf[80];
+	int lines = LINES, cols = 79;
+	int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
+	int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
+	int instrcols[] = {0, 2, 3};
 
-	//erase();
-	//mvaddstr(0, 0, "music chip tracker 0.1 by lft");
+	erase();
+	mvaddstr(0, 0, "music chip tracker 0.1 by lft");
 	drawmodeinfo(cols - 30, 0);
-	//snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
-	//mvaddstr(2, cols - 14, buf);
-	//mvaddstr(3, cols - 14, "^W)rite ^E)xit");
+	snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
+	mvaddstr(2, cols - 14, buf);
+	mvaddstr(3, cols - 14, "^W)rite ^E)xit");
 
-	//snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
-	//mvaddstr(2, 15, buf);
+	snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
+	mvaddstr(2, 15, buf);
 
-	//mvaddstr(5, 0, "Song");
+	mvaddstr(5, 0, "Song");
 	drawsonged(0, 6, lines - 12);
 
-	//snprintf(buf, sizeof(buf), "Track %02x {}", currtrack);
-	//mvaddstr(5, 29, buf);
+	snprintf(buf, sizeof(buf), "Track %02x {}", currtrack);
+	mvaddstr(5, 29, buf);
 	drawtracked(29, 6, lines - 8);
 
-	//snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
-	//mvaddstr(5, 49, buf);
+	snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
+	mvaddstr(5, 49, buf);
 	drawinstred(49, 6, lines - 12);
 
 	switch(currtab) {
 		case 0:
-			//move(6 + songy - songoffs, 0 + 4 + songcols[songx]);
+			move(6 + songy - songoffs, 0 + 4 + songcols[songx]);
 			break;
 		case 1:
-			//move(6 + tracky - trackoffs, 29 + 4 + trackcols[trackx]);
+			move(6 + tracky - trackoffs, 29 + 4 + trackcols[trackx]);
 			break;
 		case 2:
-			//move(6 + instry - instroffs, 49 + 4 + instrcols[instrx]);
+			move(6 + instry - instroffs, 49 + 4 + instrcols[instrx]);
 			break;
 	}
 
-	//refresh();
+	refresh();
 }
 
 void game_frame() {
