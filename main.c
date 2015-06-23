@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <err.h>
-#include <SDL/SDL.h>
+#include <stdint.h>
 
 #include "stuff.h"
 
@@ -53,7 +51,8 @@ const struct track trackdata = {
 	}
 };
 
-void audiocb(void *userdata, Uint8 *buf, int len) {
+#if 0
+void audiocb(void *userdata, uint8_t *buf, int len) {
 	int i;
 
 	for(i = 0; i < len; i++) {
@@ -62,38 +61,24 @@ void audiocb(void *userdata, Uint8 *buf, int len) {
 }
 
 int main(int argc, char **argv) {
-	SDL_AudioSpec requested, obtained;
-
 	if(argc != 2) {
-		printf("usage: %s <filename>\n", argv[0]);
-		exit(1);
+		//printf("usage: %s <filename>\n", argv[0]);
+		return 1;
 	}
-
-	SDL_Init(SDL_INIT_AUDIO);
-
-	atexit(SDL_Quit);
-
-	requested.freq = 31469;
-	requested.format = AUDIO_U8;
-	requested.samples = 256;
-	requested.callback = audiocb;
-	requested.channels = 1;
-	if(SDL_OpenAudio(&requested, &obtained) == -1) {
-		puts("SDL_OpenAudio");
-		exit(1);
-	}
-
-	fprintf(stderr, "freq %d\n", obtained.freq);
-	fprintf(stderr, "samples %d\n", obtained.samples);
 
 	initchip();
 	initgui();
 
 	loadfile(argv[1]);
 
-	SDL_PauseAudio(0);
-
 	guiloop();
 	
 	return 0;
+}
+#endif
+
+void game_init()
+{
+	initchip();
+	initgui();
 }

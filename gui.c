@@ -1,9 +1,6 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ncurses.h>
 #include <math.h>
-#include <err.h>
 
 #include "stuff.h"
 
@@ -17,18 +14,18 @@ int currtrack = 1, currinstr = 1;
 int currtab = 0;
 int octave = 4;
 
-char filename[1024];
+//char filename[1024];
 
-char *notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "H-"};
+static const char * const notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "H-"};
 
-char *validcmds = "0dfijlmtvw~+=";
-
+static const char * const validcmds = "0dfijlmtvw~+=";
+ 
 /*char *keymap[2] = {
 	";oqejkixdbhmwnvsz",
 	"'2,3.p5y6f7gc9r0l/="
 };*/
 
-char *keymap[2] = {
+static const char * const keymap[2] = {
 	"zsxdcvgbhnjm,l.;/",
 	"q2w3er5t6y7ui9o0p"
 };
@@ -40,7 +37,7 @@ struct instrline {
 
 struct instrument {
 	int			length;
-	struct instrline	line[256];
+	struct instrline	line[64];
 };
 
 struct songline {
@@ -48,7 +45,9 @@ struct songline {
 	u8			transp[4];
 };
 
-struct instrument instrument[256], iclip;
+#define NINST 64
+// TODO: dynamically allocate these, they waste a lot of .bss
+struct instrument instrument[NINST], iclip;
 struct track track[256], tclip;
 struct songline song[256];
 
@@ -69,7 +68,7 @@ int freqkey(int c) {
 	char *s;
 	int f = -1;
 
-	if(c == '-' || c == KEY_DC) return 0;
+	if(c == '-' /*|| c == KEY_DC*/) return 0;
 	if(c > 0 && c < 256) {
 		s = strchr(keymap[0], c);
 		if(s) {
@@ -110,6 +109,7 @@ void readinstr(int num, int pos, u8 *il) {
 }
 
 void savefile(char *fname) {
+#if 0
 	FILE *f;
 	int i, j;
 
@@ -166,9 +166,11 @@ void savefile(char *fname) {
 	}
 
 	fclose(f);
+#endif
 }
 
 void loadfile(char *fname) {
+#if 0
 	FILE *f;
 	char buf[1024];
 	int cmd[3];
@@ -229,24 +231,22 @@ void loadfile(char *fname) {
 	}
 
 	fclose(f);
+#endif
 }
 
 void exitgui() {
-	endwin();
+	//endwin();
 }
 
 void initgui() {
 	int i;
 
-	initscr();
-	noecho();
-	keypad(stdscr, TRUE);
-	//cbreak();
-	//nodelay(stdscr, TRUE);
-	//halfdelay(1);
-	raw();
+	//initscr();
+	//noecho();
+	//keypad(stdscr, TRUE);
+	//raw();
 
-	for(i = 1; i < 256; i++) {
+	for(i = 1; i < NINST; i++) {
 		instrument[i].length = 1;
 		instrument[i].line[0].cmd = '0';
 		instrument[i].line[0].param = 0;
@@ -257,64 +257,64 @@ void initgui() {
 
 void drawsonged(int x, int y, int height) {
 	int i, j;
-	char buf[1024];
+	//char buf[1024];
 
 	if(songy < songoffs) songoffs = songy;
 	if(songy >= songoffs + height) songoffs = songy - height + 1;
 
 	for(i = 0; i < songlen; i++) {
 		if(i >= songoffs && i - songoffs < height) {
-			move(y + i - songoffs, x + 0);
-			if(i == songy) attrset(A_BOLD);
-			snprintf(buf, sizeof(buf), "%02x: ", i);
-			addstr(buf);
+			//move(y + i - songoffs, x + 0);
+			//if(i == songy) attrset(A_BOLD);
+			//snprintf(buf, sizeof(buf), "%02x: ", i);
+			//addstr(buf);
 			for(j = 0; j < 4; j++) {
-				snprintf(buf, sizeof(buf), "%02x:%02x", song[i].track[j], song[i].transp[j]);
-				addstr(buf);
-				if(j != 3) addch(' ');
+				//snprintf(buf, sizeof(buf), "%02x:%02x", song[i].track[j], song[i].transp[j]);
+				//addstr(buf);
+				//if(j != 3) addch(' ');
 			}
-			attrset(A_NORMAL);
-			if(playsong && songpos == (i + 1)) addch('*');
+			//attrset(A_NORMAL);
+			//if(playsong && songpos == (i + 1)) addch('*');
 		}
 	}
 }
 
 void drawtracked(int x, int y, int height) {
 	int i, j;
-	char buf[1024];
+	//char buf[1024];
 
 	if(tracky < trackoffs) trackoffs = tracky;
 	if(tracky >= trackoffs + height) trackoffs = tracky - height + 1;
 
 	for(i = 0; i < tracklen; i++) {
 		if(i >= trackoffs && i - trackoffs < height) {
-			move(y + i - trackoffs, x + 0);
-			if(i == tracky) attrset(A_BOLD);
-			snprintf(buf, sizeof(buf), "%02x: ", i);
-			addstr(buf);
+			//move(y + i - trackoffs, x + 0);
+			//if(i == tracky) attrset(A_BOLD);
+			//snprintf(buf, sizeof(buf), "%02x: ", i);
+			//addstr(buf);
 			if(track[currtrack].line[i].note) {
-				snprintf(buf, sizeof(buf), "%s%d",
+				/*snprintf(buf, sizeof(buf), "%s%d",
 					notenames[(track[currtrack].line[i].note - 1) % 12],
-					(track[currtrack].line[i].note - 1) / 12);
+					(track[currtrack].line[i].note - 1) / 12);*/
 			} else {
-				snprintf(buf, sizeof(buf), "---");
+				//snprintf(buf, sizeof(buf), "---");
 			}
-			addstr(buf);
-			snprintf(buf, sizeof(buf), " %02x", track[currtrack].line[i].instr);
-			addstr(buf);
+			//addstr(buf);
+			//snprintf(buf, sizeof(buf), " %02x", track[currtrack].line[i].instr);
+			//addstr(buf);
 			for(j = 0; j < 2; j++) {
 				if(track[currtrack].line[i].cmd[j]) {
-					snprintf(buf, sizeof(buf), " %c%02x",
+					/*snprintf(buf, sizeof(buf), " %c%02x",
 						track[currtrack].line[i].cmd[j],
-						track[currtrack].line[i].param[j]);
+						track[currtrack].line[i].param[j]);*/
 				} else {
-					snprintf(buf, sizeof(buf), " ...");
+					//snprintf(buf, sizeof(buf), " ...");
 				}
-				addstr(buf);
+				//addstr(buf);
 			}
-			attrset(A_NORMAL);
+			//attrset(A_NORMAL);
 			if(playtrack && ((i + 1) % tracklen) == trackpos) {
-				addch('*');
+				//addch('*');
 			}
 		}
 	}
@@ -322,7 +322,7 @@ void drawtracked(int x, int y, int height) {
 
 void drawinstred(int x, int y, int height) {
 	int i;
-	char buf[1024];
+	//char buf[1024];
 
 	if(instry >= instrument[currinstr].length) instry = instrument[currinstr].length - 1;
 
@@ -331,23 +331,23 @@ void drawinstred(int x, int y, int height) {
 
 	for(i = 0; i < instrument[currinstr].length; i++) {
 		if(i >= instroffs && i - instroffs < height) {
-			move(y + i - instroffs, x + 0);
-			if(i == instry) attrset(A_BOLD);
-			snprintf(buf, sizeof(buf), "%02x: %c ", i, instrument[currinstr].line[i].cmd);
-			addstr(buf);
+			//move(y + i - instroffs, x + 0);
+			//if(i == instry) attrset(A_BOLD);
+			//snprintf(buf, sizeof(buf), "%02x: %c ", i, instrument[currinstr].line[i].cmd);
+			//addstr(buf);
 			if(instrument[currinstr].line[i].cmd == '+' || instrument[currinstr].line[i].cmd == '=') {
 				if(instrument[currinstr].line[i].param) {
-					snprintf(buf, sizeof(buf), "%s%d",
+					/*snprintf(buf, sizeof(buf), "%s%d",
 						notenames[(instrument[currinstr].line[i].param - 1) % 12],
-						(instrument[currinstr].line[i].param - 1) / 12);
+						(instrument[currinstr].line[i].param - 1) / 12);*/
 				} else {
-					snprintf(buf, sizeof(buf), "---");
+					//snprintf(buf, sizeof(buf), "---");
 				}
 			} else {
-				snprintf(buf, sizeof(buf), "%02x", instrument[currinstr].line[i].param);
+				//snprintf(buf, sizeof(buf), "%02x", instrument[currinstr].line[i].param);
 			}
-			addstr(buf);
-			attrset(A_NORMAL);
+			//addstr(buf);
+			//attrset(A_NORMAL);
 		}
 	}
 }
@@ -356,25 +356,25 @@ void drawmodeinfo(int x, int y) {
 	switch(playmode) {
 		case PM_IDLE:
 			if(currtab == 2) {
-				mvaddstr(y, x, "PLAY         IDLE space-> EDIT");
+				//mvaddstr(y, x, "PLAY         IDLE space-> EDIT");
 			} else {
-				mvaddstr(y, x, "PLAY <-enter IDLE space-> EDIT");
+				//mvaddstr(y, x, "PLAY <-enter IDLE space-> EDIT");
 			}
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 13, "IDLE");
-			attrset(A_NORMAL);
+			//attrset(A_REVERSE);
+			//mvaddstr(y, x + 13, "IDLE");
+			//attrset(A_NORMAL);
 			break;
 		case PM_PLAY:
-			mvaddstr(y, x, "PLAY space-> IDLE         EDIT");
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 0, "PLAY");
-			attrset(A_NORMAL);
+			//mvaddstr(y, x, "PLAY space-> IDLE         EDIT");
+			//attrset(A_REVERSE);
+			//mvaddstr(y, x + 0, "PLAY");
+			//attrset(A_NORMAL);
 			break;
 		case PM_EDIT:
-			mvaddstr(y, x, "PLAY         IDLE <-space EDIT");
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 26, "EDIT");
-			attrset(A_NORMAL);
+			//mvaddstr(y, x, "PLAY         IDLE <-space EDIT");
+			//attrset(A_REVERSE);
+			//mvaddstr(y, x + 26, "EDIT");
+			//attrset(A_NORMAL);
 			break;
 	}
 }
@@ -428,12 +428,13 @@ void optimize() {
 	}
 }
 
-static FILE *exportfile = 0;
-static int exportbits = 0;
-static int exportcount = 0;
+//static FILE *exportfile = 0;
+//static int exportbits = 0;
+//static int exportcount = 0;
 static int exportseek = 0;
 
 void putbit(int x) {
+#if 0
 	if(x) {
 		exportbits |= (1 << exportcount);
 	}
@@ -446,6 +447,7 @@ void putbit(int x) {
 		exportbits = 0;
 		exportcount = 0;
 	}
+#endif
 }
 
 void exportchunk(int data, int bits) {
@@ -457,6 +459,7 @@ void exportchunk(int data, int bits) {
 }
 
 int alignbyte() {
+#if 0
 	if(exportcount) {
 		if(exportfile) {
 			fprintf(exportfile, "\n0x%02x,\n", exportbits);
@@ -466,6 +469,7 @@ int alignbyte() {
 		exportcount = 0;
 	}
 	if(exportfile) fprintf(exportfile, "\n");
+#endif
 	return exportseek;
 }
 
@@ -477,6 +481,7 @@ int packcmd(u8 ch) {
 	return 0;
 }
 
+#if 0
 void exportdata(FILE *f, int maxtrack, int *resources) {
 	int i, j;
 	int nres = 0;
@@ -543,8 +548,10 @@ void exportdata(FILE *f, int maxtrack, int *resources) {
 		}
 	}
 }
+#endif
 
 void export() {
+#if 0
 	FILE *f = fopen("exported.c", "w");
 	FILE *hf = fopen("exported.h", "w");
 	int i, j;
@@ -580,12 +587,13 @@ void export() {
 
 	fclose(f);
 	fclose(hf);
+#endif
 }
 
 void handleinput() {
-	int c, x;
+	int c = 0, x;
 	
-	if((c = getch()) != ERR) switch(c) {
+	/*if((c = getch()) != ERR)*/ switch(c) {
 		case 10:
 		case 13:
 			if(currtab != 2) {
@@ -610,13 +618,13 @@ void handleinput() {
 			currtab %= 3;
 			break;
 		case 'E' - '@':
-			erase();
-			refresh();
-			endwin();
+			//erase();
+			//refresh();
+			//endwin();
 			exit(0);
 			break;
 		case 'W' - '@':
-			savefile(filename);
+			//savefile(filename);
 			break;
 		case '<':
 			if(octave) octave--;
@@ -651,6 +659,7 @@ void handleinput() {
 		case '%':
 			export();
 			break;
+/*
 		case KEY_LEFT:
 			switch(currtab) {
 				case 0:
@@ -711,6 +720,7 @@ void handleinput() {
 					break;
 			}
 			break;
+*/
 		case 'C':
 			if(currtab == 2) {
 				memcpy(&iclip, &instrument[currinstr], sizeof(struct instrument));
@@ -856,51 +866,49 @@ void handleinput() {
 }
 
 void drawgui() {
-	char buf[1024];
-	int lines = LINES, cols = 79;
-	int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
-	int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
-	int instrcols[] = {0, 2, 3};
+	//char buf[1024];
+	int lines = 24/*LINES*/, cols = 79;
+	//int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
+	//int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
+	//int instrcols[] = {0, 2, 3};
 
-	erase();
-	mvaddstr(0, 0, "music chip tracker 0.1 by lft");
+	//erase();
+	//mvaddstr(0, 0, "music chip tracker 0.1 by lft");
 	drawmodeinfo(cols - 30, 0);
-	snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
-	mvaddstr(2, cols - 14, buf);
-	mvaddstr(3, cols - 14, "^W)rite ^E)xit");
+	//snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
+	//mvaddstr(2, cols - 14, buf);
+	//mvaddstr(3, cols - 14, "^W)rite ^E)xit");
 
-	snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
-	mvaddstr(2, 15, buf);
+	//snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
+	//mvaddstr(2, 15, buf);
 
-	mvaddstr(5, 0, "Song");
+	//mvaddstr(5, 0, "Song");
 	drawsonged(0, 6, lines - 12);
 
-	snprintf(buf, sizeof(buf), "Track %02x {}", currtrack);
-	mvaddstr(5, 29, buf);
+	//snprintf(buf, sizeof(buf), "Track %02x {}", currtrack);
+	//mvaddstr(5, 29, buf);
 	drawtracked(29, 6, lines - 8);
 
-	snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
-	mvaddstr(5, 49, buf);
+	//snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
+	//mvaddstr(5, 49, buf);
 	drawinstred(49, 6, lines - 12);
 
 	switch(currtab) {
 		case 0:
-			move(6 + songy - songoffs, 0 + 4 + songcols[songx]);
+			//move(6 + songy - songoffs, 0 + 4 + songcols[songx]);
 			break;
 		case 1:
-			move(6 + tracky - trackoffs, 29 + 4 + trackcols[trackx]);
+			//move(6 + tracky - trackoffs, 29 + 4 + trackcols[trackx]);
 			break;
 		case 2:
-			move(6 + instry - instroffs, 49 + 4 + instrcols[instrx]);
+			//move(6 + instry - instroffs, 49 + 4 + instrcols[instrx]);
 			break;
 	}
 
-	refresh();
+	//refresh();
 }
 
-void guiloop() {
-	for(;;) {
+void game_frame() {
 		drawgui();
 		handleinput();
-	}
 }

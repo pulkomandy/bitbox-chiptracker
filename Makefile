@@ -1,10 +1,7 @@
-LDFLAGS=-lSDL -lncurses
-CFLAGS=-Wall
-CC=gcc
+NAME = chiptracker
+GAME_C_FILES = main.c chip.c gui.c
+VGA_SIMPLE_MODE = 10 # textmode with colors
 
-all:		tracker
+BITBOX ?= ../bitbox
 
-tracker:	main.o chip.o gui.o
-		gcc -o $@ $^ ${LDFLAGS}
-
-%.o:		%.c stuff.h Makefile
+include $(BITBOX)/lib/bitbox.mk

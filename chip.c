@@ -1,6 +1,6 @@
 #include "stuff.h"
 
-static u16 callbackwait;
+//static u16 callbackwait;
 
 volatile u8 test;
 volatile u8 testwait;
@@ -24,21 +24,6 @@ const u16 freqtable[] = {
 	0x42f9, 0x46f5, 0x4b2d, 0x4fa6, 0x5462, 0x5967, 0x5eb7, 0x6459, 0x6a51,
 	0x70a3, 0x7756, 0x7e6f
 };
-
-#if 0
-const u16 freqtable[] = {
-	0x0085, 0x008d, 0x0096, 0x009f, 0x00a8, 0x00b2, 0x00bd, 0x00c8, 0x00d4,
-	0x00e1, 0x00ee, 0x00fc, 0x010b, 0x011b, 0x012c, 0x013e, 0x0151, 0x0165,
-	0x017a, 0x0191, 0x01a9, 0x01c2, 0x01dd, 0x01f9, 0x0217, 0x0237, 0x0259,
-	0x027d, 0x02a3, 0x02cb, 0x02f5, 0x0322, 0x0352, 0x0385, 0x03ba, 0x03f3,
-	0x042f, 0x046f, 0x04b2, 0x04fa, 0x0546, 0x0596, 0x05eb, 0x0645, 0x06a5,
-	0x070a, 0x0775, 0x07e6, 0x085f, 0x08de, 0x0965, 0x09f4, 0x0a8c, 0x0b2c,
-	0x0bd6, 0x0c8b, 0x0d4a, 0x0e14, 0x0eea, 0x0fcd, 0x10be, 0x11bd, 0x12cb,
-	0x13e9, 0x1518, 0x1659, 0x17ad, 0x1916, 0x1a94, 0x1c28, 0x1dd5, 0x1f9b,
-	0x217c, 0x237a, 0x2596, 0x27d3, 0x2a31, 0x2cb3, 0x2f5b, 0x322c, 0x3528,
-	0x3851, 0x3bab, 0x3f37
-};
-#endif
 
 const s8 sinetable[] = {
 	0, 12, 25, 37, 49, 60, 71, 81, 90, 98, 106, 112, 117, 122, 125, 126,
@@ -295,56 +280,3 @@ void initchip() {
 	channel[3].inum = 0;
 }
 
-u8 interrupthandler()
-{
-	u8 i;
-	s16 acc;
-	static u32 noiseseed = 1;
-	u8 newbit;
-
-	newbit = 0;
-	if(noiseseed & 0x80000000L) newbit ^= 1;
-	if(noiseseed & 0x01000000L) newbit ^= 1;
-	if(noiseseed & 0x00000040L) newbit ^= 1;
-	if(noiseseed & 0x00000200L) newbit ^= 1;
-	noiseseed = (noiseseed << 1) | newbit;
-
-	if(callbackwait) {
-		callbackwait--;
-	} else {
-		playroutine();
-		callbackwait = 490 - 1;
-	}
-
-	acc = 0;
-	for(i = 0; i < 4; i++) {
-		s8 value; // [-32,31]
-
-		switch(osc[i].waveform) {
-			case WF_TRI:
-				if(osc[i].phase < 0x8000) {
-					value = -32 + (osc[i].phase >> 9);
-				} else {
-					value = 31 - ((osc[i].phase - 0x8000) >> 9);
-				}
-				break;
-			case WF_SAW:
-				value = -32 + (osc[i].phase >> 10);
-				break;
-			case WF_PUL:
-				value = (osc[i].phase > osc[i].duty)? -32 : 31;
-				break;
-			case WF_NOI:
-				value = (noiseseed & 63) - 32;
-				break;
-			default:
-				value = 0;
-				break;
-		}
-		osc[i].phase += osc[i].freq / 4;
-
-		acc += value * osc[i].volume; // rhs = [-8160,7905]
-	}
-	// acc [-32640,31620]
-	return 128 + (acc >> 8);	// [1,251]
-}
