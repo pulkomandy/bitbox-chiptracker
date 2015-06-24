@@ -9,7 +9,7 @@
 #define SETLO(v,x) v = ((v) & 0xf0) | (x)
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
 
-int songx, songy, songoffs, songlen = 1;
+int songx, songy, songoffs;
 int trackx, tracky, trackoffs, tracklen = TRACKLEN;
 int instrx, instry, instroffs;
 int currtrack = 1, currinstr = 1;
@@ -172,7 +172,7 @@ void savefile(char *fname) {
 }
 
 void loadfile(char *fname) {
-#if 0
+#ifdef EMULATOR
 	FILE *f;
 	char buf[1024];
 	int cmd[3];
@@ -236,9 +236,9 @@ void loadfile(char *fname) {
 #endif
 }
 
-void exitgui() {
+//void exitgui() {
 	//endwin();
-}
+//}
 
 void initgui() {
 	int i;
@@ -254,7 +254,9 @@ void initgui() {
 		instrument[i].line[0].param = 0;
 	}
 
-	atexit(exitgui);
+	songlen = 1;
+
+	//atexit(exitgui);
 }
 
 void drawsonged(int x, int y, int height) {
@@ -277,8 +279,13 @@ void drawsonged(int x, int y, int height) {
 			}
 			attrset(A_NORMAL);
 			if(playsong && songpos == (i + 1)) addch('*');
+			else addch(' ');
 		}
 	}
+
+	// One blank line at song end
+	move(y + i - songoffs, x + 0);
+	addstr("---------------------------");
 }
 
 void drawtracked(int x, int y, int height) {
@@ -317,7 +324,8 @@ void drawtracked(int x, int y, int height) {
 			attrset(A_NORMAL);
 			if(playtrack && ((i + 1) % tracklen) == trackpos) {
 				addch('*');
-			}
+			} else
+				addch(' ');
 		}
 	}
 }
@@ -352,6 +360,8 @@ void drawinstred(int x, int y, int height) {
 			attrset(A_NORMAL);
 		}
 	}
+	move(y + i - instroffs, x + 0);
+	addstr("--- - ---");
 }
 
 void drawmodeinfo(int x, int y) {
@@ -875,7 +885,7 @@ void drawgui() {
 	int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
 	int instrcols[] = {0, 2, 3};
 
-	erase();
+	//erase();
 	mvaddstr(0, 0, "music chip tracker 0.1 by lft");
 	drawmodeinfo(cols - 30, 0);
 	snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
@@ -912,6 +922,7 @@ void drawgui() {
 }
 
 void game_frame() {
-		drawgui();
-		handleinput();
+	playroutine();
+	drawgui();
+	handleinput();
 }

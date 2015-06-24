@@ -35,9 +35,9 @@ static inline void initscr()
 	palette[A_NORMAL]      = 0xFFFF0000; // boring white on black
 	palette[A_REVERSE]     = 0x0000FFFF; // boring black on white
 	palette[A_BOLD]        = 0xFF000000;
-	palette[A_NORMAL  | 8] = 0xFFFF7777; // boring white on grey
-	palette[A_REVERSE | 8] = 0x00007777; // boring black on grey
-	palette[A_BOLD    | 8] = 0xFF007777;
+	palette[A_NORMAL  | 8] = 0xFFFF00FF; // boring white on grey
+	palette[A_REVERSE | 8] = 0x000000FF; // boring black on grey
+	palette[A_BOLD    | 8] = 0xFF0000FF;
 }
 
 static inline void erase()

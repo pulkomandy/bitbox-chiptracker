@@ -4,9 +4,6 @@
 
 //static u16 callbackwait;
 
-volatile u8 test;
-volatile u8 testwait;
-
 u8 playtrack;
 
 void silence() {
@@ -102,9 +99,9 @@ void playroutine() {			// called at 50 Hz
 							channel[ch].vdepth = 0;
 						}
 						if(tl.cmd[0])
-							runcmd(ch, tl.cmd[0], tl.param[0]);
+							runcmd(ch, packcmd(tl.cmd[0]), tl.param[0]);
 						/*if(tl.cmd[1])
-							runcmd(ch, tl.cmd[1], tl.param[1]);*/
+							runcmd(ch, packcmd(tl.cmd[1]), tl.param[1]);*/
 					}
 				}
 
@@ -125,7 +122,7 @@ void playroutine() {			// called at 50 Hz
 			readinstr(channel[ch].inum, channel[ch].iptr, il);
 			channel[ch].iptr++;
 
-			runcmd(ch, il[0], il[1]);
+			runcmd(ch, packcmd(il[0]), il[1]);
 		}
 		if(channel[ch].iwait) channel[ch].iwait--;
 
