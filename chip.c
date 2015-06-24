@@ -1,58 +1,13 @@
 #include "stuff.h"
 #include <chiptune_engine.h>
+#include <chiptune_player.h>
 
 //static u16 callbackwait;
 
 volatile u8 test;
 volatile u8 testwait;
 
-u8 trackwait;
-u8 trackpos;
-u8 songpos;
-
-u8 playsong;
 u8 playtrack;
-
-const u16 freqtable[] = {
-	0x010b, 0x011b, 0x012c, 0x013e, 0x0151, 0x0165, 0x017a, 0x0191, 0x01a9,
-	0x01c2, 0x01dd, 0x01f9, 0x0217, 0x0237, 0x0259, 0x027d, 0x02a3, 0x02cb,
-	0x02f5, 0x0322, 0x0352, 0x0385, 0x03ba, 0x03f3, 0x042f, 0x046f, 0x04b2,
-	0x04fa, 0x0546, 0x0596, 0x05eb, 0x0645, 0x06a5, 0x070a, 0x0775, 0x07e6,
-	0x085f, 0x08de, 0x0965, 0x09f4, 0x0a8c, 0x0b2c, 0x0bd6, 0x0c8b, 0x0d4a,
-	0x0e14, 0x0eea, 0x0fcd, 0x10be, 0x11bd, 0x12cb, 0x13e9, 0x1518, 0x1659,
-	0x17ad, 0x1916, 0x1a94, 0x1c28, 0x1dd5, 0x1f9b, 0x217c, 0x237a, 0x2596,
-	0x27d3, 0x2a31, 0x2cb3, 0x2f5b, 0x322c, 0x3528, 0x3851, 0x3bab, 0x3f37,
-	0x42f9, 0x46f5, 0x4b2d, 0x4fa6, 0x5462, 0x5967, 0x5eb7, 0x6459, 0x6a51,
-	0x70a3, 0x7756, 0x7e6f
-};
-
-const s8 sinetable[] = {
-	0, 12, 25, 37, 49, 60, 71, 81, 90, 98, 106, 112, 117, 122, 125, 126,
-	127, 126, 125, 122, 117, 112, 106, 98, 90, 81, 71, 60, 49, 37, 25, 12,
-	0, -12, -25, -37, -49, -60, -71, -81, -90, -98, -106, -112, -117, -122,
-	-125, -126, -127, -126, -125, -122, -117, -112, -106, -98, -90, -81,
-	-71, -60, -49, -37, -25, -12
-};
-
-struct channel {
-	u8	tnum;
-	s8	transp;
-	u8	tnote;
-	u8	lastinstr;
-	u8	inum;
-	u8	iptr;
-	u8	iwait;
-	u8	inote;
-	s8	bendd;
-	s16	bend;
-	s8	volumed;
-	s16	dutyd;
-	u8	vdepth;
-	u8	vrate;
-	u8	vpos;
-	s16	inertia;
-	u16	slur;
-} channel[4];
 
 void silence() {
 	u8 i;
@@ -62,54 +17,6 @@ void silence() {
 	}
 	playsong = 0;
 	playtrack = 0;
-}
-
-void runcmd(u8 ch, u8 cmd, u8 param) {
-	switch(cmd) {
-		case 0:
-			channel[ch].inum = 0;
-			break;
-		case 'd':
-			osc[ch].duty = param << 8;
-			break;
-		case 'f':
-			channel[ch].volumed = param;
-			break;
-		case 'i':
-			channel[ch].inertia = param << 1;
-			break;
-		case 'j':
-			channel[ch].iptr = param;
-			break;
-		case 'l':
-			channel[ch].bendd = param;
-			break;
-		case 'm':
-			channel[ch].dutyd = param << 6;
-			break;
-		case 't':
-			channel[ch].iwait = param;
-			break;
-		case 'v':
-			osc[ch].volume = param;
-			break;
-		case 'w':
-			osc[ch].waveform = param;
-			break;
-		case '+':
-			channel[ch].inote = param + channel[ch].tnote - 12 * 4;
-			break;
-		case '=':
-			channel[ch].inote = param;
-			break;
-		case '~':
-			if(channel[ch].vdepth != (param >> 4)) {
-				channel[ch].vpos = 0;
-			}
-			channel[ch].vdepth = param >> 4;
-			channel[ch].vrate = param & 15;
-			break;
-	}
 }
 
 void iedplonk(int note, int instr) {
