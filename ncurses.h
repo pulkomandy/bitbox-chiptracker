@@ -16,8 +16,16 @@ enum attributes{
 	A_BOLD
 };
 
-static const int LINES = 29;
-static const int ERR = -1;
+static const int LINES = 39;
+
+enum keycodes{
+	ERR = -1,
+	KEY_RIGHT = 128,
+	KEY_LEFT = 129,
+	KEY_DOWN = 130,
+	KEY_UP = 131
+};
+
 
 static inline void initscr()
 {
@@ -75,11 +83,43 @@ static inline void attrset(int attr)
 	text_color = attr;
 };
 
+static const int normal_table[] = {
+	ERR,ERR,ERR,ERR,'a','b','c','d','e','f','g','h','i','j','k','l','m','n',
+	'o','p','q','r','s','t','u','v','w','x','y','z','1','2','3','4','5','6',
+	'7','8','9','0','\n',0x1B,8,'\t',' ','-','=','[',']','\\','#',';','\'','`',
+	',','.','/',
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
+	[224]=ERR,ERR,ERR,ERR,ERR,ERR,ERR,ERR
+};
+
+static const int shift_table[] = {
+	ERR,ERR,ERR,ERR,'A','B','C','D','E','F','G','H','I','J','K','L','M','N',
+	'O','P','Q','R','S','T','U','V','W','X','Y','Z','!','@','#','$','%','&',
+	'^','*','(',')','\n',0x1B,8,'\t',' ','_','+','{','}','|','#',':','\\','"',
+	'~','<','>','?',
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
+	[224]=ERR,ERR,ERR,ERR,ERR,ERR,ERR,ERR
+};
+
+static const int ctrl_table[] = {
+	ERR,ERR,ERR,ERR,1,2,3,4,5,6,7,8,9,10,11,12,13,14,
+	15,16,17,18,19,20,21,22,23,24,25,26,'1','2','3','4','5','6',
+	'7','8','9','0','\n',0x1B,8,'\t',' ','-','=','[',']','\\',ERR,';','\'','`',
+	',','.','/',
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
+	[224]=ERR,ERR,ERR,ERR,ERR,ERR,ERR,ERR
+};
+
 static inline int getch()
 {
 	struct event e = event_get();
 	if (e.type != evt_keyboard_press)
 		return ERR;
 
-	return e.kbd.key;
+	// Unfortunately kbd_map is not complete enough, let's add some things...
+	if (e.kbd.mod & (LCtrl|RCtrl))
+		return ctrl_table[e.kbd.key];
+	if (e.kbd.mod & (LShift|RShift))
+		return shift_table[e.kbd.key];
+	return normal_table[e.kbd.key];
 }

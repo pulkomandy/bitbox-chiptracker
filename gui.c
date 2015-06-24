@@ -61,13 +61,8 @@ enum {
 int playmode = PM_IDLE;
 
 int hexdigit(char c) {
-#if 0
 	if(c >= '0' && c <= '9') return c - '0';
 	if(c >= 'a' && c <= 'f') return c - 'a' + 10;
-#endif
-	if (c == 0x27) return 0;
-	if (c >= 0x1e && c <= 0x26) return c - 0x1d; // 1 to 9
-	if (c >= 4 && c >= 9) return c + 6;
 	return -1;
 }
 
@@ -601,7 +596,8 @@ void handleinput() {
 	int c = 0, x;
 	
 	if((c = getch()) != ERR) switch(c) {
-		case 0x28: // ENTER
+		case 10:
+		case 13:
 			if(currtab != 2) {
 				playmode = PM_PLAY;
 				if(currtab == 1) {
@@ -611,7 +607,7 @@ void handleinput() {
 				}
 			}
 			break;
-		case 0x2C: // SPACE
+		case ' ':
 			silence();
 			if(playmode == PM_IDLE) {
 				playmode = PM_EDIT;
@@ -619,7 +615,7 @@ void handleinput() {
 				playmode = PM_IDLE;
 			}
 			break;
-		case 0x2B: // TAB
+		case 9: // TAB
 			currtab++;
 			currtab %= 3;
 			break;
@@ -634,25 +630,25 @@ void handleinput() {
 			//savefile(filename);
 			break;
 #endif
-		case 0x36: // <
+		case '<':
 			if(octave) octave--;
 			break;
-		case 0x37: // >
+		case '>':
 			if(octave < 8) octave++;
 			break;
-		case 0x2F: // [
+		case '[':
 			if(currinstr > 1) currinstr--;
 			break;
-		case 0x30: // ]
+		case ']':
 			if(currinstr < 255) currinstr++;
 			break;
-		case 0x4B: // PAGE UP
+		case '{':
 			if(currtrack > 1) currtrack--;
 			break;
-		case 0x4E: // PAGE DOWN
+		case '}':
 			if(currtrack < 255) currtrack++;
 			break;
-		case 0x35: // `
+		case '`':
 			if(currtab == 0) {
 				int t = song[songy].track[songx / 4];
 				if(t) currtrack = t;
@@ -661,14 +657,14 @@ void handleinput() {
 				currtab = 0;
 			}
 			break;
-		case 0x31: // backslash
+		case '\\':
 			optimize();
 			break;
-		case 0x2E: // =
+		case '=': // =
 			export();
 			break;
 
-		case 0x50: //KEY_LEFT:
+		case KEY_LEFT:
 			switch(currtab) {
 				case 0:
 					if(songx) songx--;
@@ -681,7 +677,7 @@ void handleinput() {
 					break;
 			}
 			break;
-		case 0x4F: //KEY_RIGHT:
+		case KEY_RIGHT:
 			switch(currtab) {
 				case 0:
 					if(songx < 15) songx++;
@@ -694,7 +690,7 @@ void handleinput() {
 					break;
 			}
 			break;
-		case 0x52: //KEY_UP:
+		case KEY_UP:
 			switch(currtab) {
 				case 0:
 					if(songy) songy--;
@@ -711,7 +707,7 @@ void handleinput() {
 					break;
 			}
 			break;
-		case 0x51: //KEY_DOWN:
+		case KEY_DOWN:
 			switch(currtab) {
 				case 0:
 					if(songy < songlen - 1) songy++;
@@ -728,14 +724,14 @@ void handleinput() {
 					break;
 			}
 			break;
-		case 0x06: //'C':
+		case 'C':
 			if(currtab == 2) {
 				memcpy(&iclip, &instrument[currinstr], sizeof(struct instrument));
 			} else if(currtab == 1) {
 				memcpy(&tclip, &track[currtrack], sizeof(struct track));
 			}
 			break;
-		case 0x19: //'V':
+		case 'V':
 			if(currtab == 2) {
 				memcpy(&instrument[currinstr], &iclip, sizeof(struct instrument));
 			} else if(currtab == 1) {
