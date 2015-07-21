@@ -1,5 +1,3 @@
-#define TRACKLEN 32
-
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef char s8;
@@ -22,7 +20,7 @@ struct trackline {
 	};
 
 struct track {
-	struct trackline	line[TRACKLEN];
+	struct trackline	line[256];
 };
 
 
@@ -47,4 +45,6 @@ extern u8 trackpos;
 extern u8 playtrack;
 extern u8 playsong;
 extern u8 songpos;
+extern u8 songspeed;
 extern int songlen;
+extern int tracklen;

@@ -11,15 +11,105 @@
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
 
 int songx, songy, songoffs, songlen = 1;
-int trackx, tracky, trackoffs, tracklen = TRACKLEN;
+int trackx, tracky, trackoffs;
 int instrx, instry, instroffs;
 int currtrack = 1, currinstr = 1;
 int currtab = 0;
 int octave = 4;
+int tracklen = 32;
+u8 songspeed = 4;
 
-char filename[1024];
+char filename[1022];
+char cmd[32] = {0, 0}; // we do this to avoid undefined behavior in setcmd
+char cmdinput[64];
+u8 cmdinputpos;
+bool cmdinputnumeric;
+char alert[64];
 
-char *notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "H-"};
+void setalert(const char *alerto)
+{
+	snprintf(alert, sizeof(alert), "%s", alerto);
+}
+
+void setcmd(const char *cmdo)
+{
+	alert[0] = 0; // remove any alert
+	if(!cmd[0]) // if cmd had nothing in it
+	{
+		snprintf(cmd, sizeof(cmd), "%s", cmdo);
+		if (cmd[1] != cmdo[1]) // check if the previous command was the desired command
+		{	// if not, then we need to remove previous input.
+			cmdinput[0] = 0; // kill previous input
+			cmdinputpos = 0;
+		}
+	}
+	else if (cmd[0] != cmdo[0]) // command did not start with cmdo[0]
+	{
+		snprintf(cmd, sizeof(cmd), "%s", cmdo);
+		cmdinput[0] = 0;	// zero the input string, we just changed input.
+		cmdinputpos = 0;
+	}
+	else // cmd[0] was cmdo[0], so we want to remove command.
+	{
+		cmd[0] = 0;
+		return;
+	}
+	switch (cmd[0])
+	{
+	case 'n': // name of file
+	case 'f': // file to open
+		cmdinputnumeric = false;
+		break;
+	case 't': // tracklength
+	case 's': // songspeed 
+		cmdinputnumeric = true;
+		break;
+	}
+}
+
+void evalcmd()
+{
+	if (cmdinput[0])
+	{
+		int result;
+		switch (cmd[0])
+		{
+		case 'n': // name of file
+			snprintf(filename, sizeof(filename), "%s", cmdinput);
+			break;
+		case 'f': // file to open
+			loadfile(cmdinput);
+			break;
+		case 't': // tracklength
+			if (1 == sscanf(cmdinput, "%d", &result))
+			{
+				if (result > 0 && result < 257)
+					tracklen = result;
+				else
+					setalert("need tracklength > 0 and < 257");
+			}
+			else
+				setalert("unknown input!!");
+			break;
+		case 's': // songspeed 
+			if (1 == sscanf(cmdinput, "%d", &result))
+			{
+				if (result > 0 && result < 256)
+					songspeed = result;
+				else
+					setalert("need songspeed > 0 and < 256");
+			}
+			else
+				setalert("unknown input!!");
+			break;
+		}
+	}
+	cmd[0] = 0;
+	cmdinput[0] = 0;
+	cmdinputpos = 0;
+}
+
+char *notenames[] = {"C-", "C#", "D-", "Eb", "E-", "F-", "F#", "G-", "Ab", "A-", "Bb", "B-"};
 
 char *validcmds = "0dfijlmtvw~+=";
 
@@ -121,6 +211,10 @@ void savefile(char *fname) {
 	fprintf(f, "musicchip tune\n");
 	fprintf(f, "version 1\n");
 	fprintf(f, "\n");
+	if(tracklen != 32)
+	{
+		 fprintf(f, "tracklength %02x\n\n", tracklen);
+	}
 	for(i = 0; i < songlen; i++) {
 		fprintf(f, "songline %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 			i,
@@ -224,6 +318,8 @@ void loadfile(char *fname) {
 			instrument[i1].line[i2].cmd = cmd[0];
 			instrument[i1].line[i2].param = param[0];
 			if(instrument[i1].length <= i2) instrument[i1].length = i2 + 1;
+		} else if(1 == sscanf(buf, "tracklength %x", &i)) {
+			tracklen = i;
 		}
 	}
 
@@ -273,9 +369,9 @@ void drawsonged(int x, int y, int height) {
 				if(j != 3) addch(' ');
 			}
 			attrset(A_NORMAL);
-            // error here?
+			// error here?
 			if(playsong && songpos == (i)) addch('*');
-            // error here??
+			// error here??
 		}
 	}
 }
@@ -363,7 +459,7 @@ void drawmodeinfo(int x, int y) {
 			attrset(A_NORMAL);
 			break;
 		case PM_EDIT:
-			mvaddstr(y, x,   "enter [stop all]");
+			mvaddstr(y, x,	 "enter [stop all]");
 			mvaddstr(y+1, x, "space [(re)start play]");
 			attrset(A_REVERSE);
 			//mvaddstr(y, x, "EDIT");
@@ -538,8 +634,13 @@ void exportdata(FILE *f, int maxtrack, int *resources) {
 }
 
 void export() {
-	FILE *f = fopen("song.c", "w");
-	FILE *hf = fopen("song.h", "w");
+	// song.c song.h
+
+	char cfilename[1024];
+	snprintf(cfilename, sizeof(cfilename), "%s.c", filename);
+	FILE *f = fopen(cfilename, "w");
+	snprintf(cfilename, sizeof(cfilename), "%s.h", filename);
+	FILE *hf = fopen(cfilename, "w");
 	int i, j;
 	int maxtrack = 0;
 	int resources[256];
@@ -576,30 +677,84 @@ void export() {
 }
 
 void handleinput() {
-	int c, x;
-	
-	if((c = getch()) != ERR) switch(c) {
+int c, x;
+if ((c = getch()) != ERR)
+{
+	if (cmd[0])
+	{
+		//	 period   numbers			  uppercase letters   lowercase letters		_ or -
+		if ( c==46 || (c>=48 && c<=57) || (c>=65 && c<=90) || (c>=97 && c<=122) || (c == 95 || c == 45) )
+		{
+			if (cmdinputnumeric)
+			{
+				// only allow inputting numbers
+				if (c>=48 && c<=57)
+				{
+					if (cmdinputpos < 2)
+					{
+						cmdinput[cmdinputpos] = c;
+						cmdinput[++cmdinputpos] = 0;
+					}
+					else
+					{
+						cmdinput[cmdinputpos] = c;
+						cmdinput[cmdinputpos+1] = 0;
+					}
+				}
+			}
+			else
+			{
+				if (cmdinputpos < 63)
+				{
+					cmdinput[cmdinputpos] = c;
+					cmdinput[++cmdinputpos] = 0;
+				}
+				else
+					cmdinput[cmdinputpos] = c;
+			}
+		}
+		else switch (c)
+		{
+		case KEY_BACKSPACE:
+			if (cmdinputpos > 0)
+				cmdinput[--cmdinputpos] = 0;
+			break;
+		case '\n':
+			evalcmd();
+			break;
+		case 'T' - '@':
+			setcmd("tracklength");
+			break;
+		case 'F' - '@':
+			setcmd("name of file");
+			break;
+		case 'O' - '@':
+			setcmd("file to open");
+			break;
+		case 'S' - '@':
+			setcmd("songspeed");
+			break;
+		case 'E' - '@':
+			cmd[0] = 0;
+			break;
+		}
+	}
+	else switch(c) {
 		case ' ':
-            silence();
-            //playmode = PM_PLAY;
-            if(currtab == 1) {
-                startplaytrack(currtrack);
-            } else {
-                startplaysong(songy);
-                //TODO( add * to song to show where it is)
-            }
+			silence();
+			if(currtab == 1) {
+				startplaytrack(currtrack);
+			} else {
+				startplaysong(songy);
+				//TODO( add * to song to show where it is)
+			}
 			break;
 		case 10:
 		case 13:
 			silence();
-//			if(playmode == PM_PLAY) {
-//				playmode = PM_EDIT;
-//			} else {
-//				playmode = PM_PLAY;
-//			}
 			break;
-        case 'N' - '@':
-        case 'N':
+		case 'N' - '@':
+		case 'N':
 		case 9:
 			currtab++;
 			currtab %= 3;
@@ -617,6 +772,18 @@ void handleinput() {
 			break;
 		case 'W' - '@':
 			savefile(filename);
+			break;
+		case 'T' - '@':
+			setcmd("tracklength");
+			break;
+		case 'F' - '@':
+			setcmd("name of file");
+			break;
+		case 'O' - '@':
+			setcmd("file to open");
+			break;
+		case 'S' - '@':
+			setcmd("songspeed");
 			break;
 		case '<':
 			if(octave) octave--;
@@ -845,7 +1012,7 @@ void handleinput() {
 					}
 				}
 			} 
-            else if(playmode == PM_PLAY) {
+			else if(playmode == PM_PLAY) {
 				x = freqkey(c);
 
 				if(x > 0) {
@@ -854,6 +1021,7 @@ void handleinput() {
 			}
 			break;
 	}
+}
 }
 
 void drawgui() {
@@ -866,12 +1034,16 @@ void drawgui() {
 	erase();
 	mvaddstr(0, 0, "music chip tracker 0.1 by lft, mod by ible");
 	drawmodeinfo(cols - 30, 0);
-	mvaddstr(3, cols - 30, "^W)rite ^E)xit");
-	snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
-	mvaddstr(5, cols - 12, buf);
+	mvaddstr(3, cols - 30, "^W)rite ^O)pen ^E)xit");
+	snprintf(buf, sizeof(buf), "Octave: %d <>", octave);
+	mvaddstr(5, cols - 15, buf);
 
-	snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
-	mvaddstr(3, 15, buf);
+	snprintf(buf, sizeof(buf), "^F)ilename:  %s", filename);
+	mvaddstr(2, 1, buf);
+	snprintf(buf, sizeof(buf), "^S)ongspeed: %d", songspeed);
+	mvaddstr(3, 1, buf);
+	snprintf(buf, sizeof(buf), "^T)racklength: %d", tracklen);
+	mvaddstr(3, 29, buf);
 
 	mvaddstr(5, 0, "Song");
 	drawsonged(0, 6, lines - 12);
@@ -883,6 +1055,19 @@ void drawgui() {
 	snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
 	mvaddstr(5, 49, buf);
 	drawinstred(49, 6, lines - 12);
+
+	if (cmd[0])
+	{
+		snprintf(buf, sizeof(buf), "new %s? %s", cmd, cmdinput);
+	}
+	else
+	{
+		if (alert[0])
+			snprintf(buf, sizeof(buf), "%s", alert);	
+		else
+			snprintf(buf, sizeof(buf), "						");
+	}
+	mvaddstr(LINES-1, 1, buf);
 
 	switch(currtab) {
 		case 0:

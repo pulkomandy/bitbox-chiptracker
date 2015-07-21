@@ -5,7 +5,7 @@ static u16 callbackwait;
 volatile u8 test;
 volatile u8 testwait;
 
-u8 trackwait;
+u8 songwait;
 u8 trackpos;
 u8 songpos;
 
@@ -81,6 +81,7 @@ void silence() {
 
 	for(i = 0; i < 4; i++) {
 		osc[i].volume = 0;
+		channel[i].volumed = 0;
 	}
 	playsong = 0;
 	playtrack = 0;
@@ -152,7 +153,7 @@ void startplaytrack(int t) {
 	channel[2].tnum = 0;
 	channel[3].tnum = 0;
 	trackpos = 0;
-	trackwait = 0;
+	songwait = 0;
 	playtrack = 1;
 	playsong = 0;
 }
@@ -160,7 +161,7 @@ void startplaytrack(int t) {
 void startplaysong(int p) {
 	songpos = p;
 	trackpos = 0;
-	trackwait = 0;
+	songwait = 0;
 	playtrack = 0;
 	playsong = 1;
 }
@@ -169,10 +170,10 @@ void playroutine() {			// called at 50 Hz
 	u8 ch;
 
 	if(playtrack || playsong) {
-		if(trackwait) {
-			trackwait--;
+		if(songwait) {
+			songwait--;
 		} else {
-			trackwait = 4;
+			songwait = songspeed;
 
 			if(!trackpos) {
 				if(playsong) {
@@ -224,7 +225,8 @@ void playroutine() {			// called at 50 Hz
 				}
 
 				trackpos++;
-				trackpos &= 31;
+				if (trackpos == tracklen)
+					trackpos = 0;
 			}
 		}
 	}
@@ -280,7 +282,7 @@ void playroutine() {			// called at 50 Hz
 }
 
 void initchip() {
-	trackwait = 0;
+	songwait = 0;
 	trackpos = 0;
 	playsong = 0;
 	playtrack = 0;
