@@ -8,3 +8,6 @@ tracker:	main.o chip.o gui.o
 		gcc -o $@ $^ ${LDFLAGS}
 
 %.o:		%.c stuff.h Makefile
+
+clean:
+	rm -rf main.o chip.o gui.o
