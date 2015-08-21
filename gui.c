@@ -10,7 +10,8 @@
 #define SETLO(v,x) v = ((v) & 0xf0) | (x)
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
 
-int songx, songy, songoffs, songlen = 1;
+int songx, songy, songoffs;
+u16 songlen = 1;
 int trackx, tracky, trackoffs;
 int instrx, instry, instroffs;
 int currtrack = 1, currinstr = 1;
@@ -273,6 +274,7 @@ void loadfile(char *fname) {
 
 	f = fopen(fname, "r");
 	if(!f) {
+		snprintf(alert, sizeof(alert), "no succeed in opening file.");
 		return;
 	}
 
