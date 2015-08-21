@@ -605,7 +605,7 @@ void export() {
 void handleinput() {
 	int c = 0, x;
 	
-	if((c = getch()) != ERR) switch(c) {
+	if((c = getch()) != KEY_ERR) switch(c) {
 		case 10:
 		case 13:
 			if(currtab != 2) {
