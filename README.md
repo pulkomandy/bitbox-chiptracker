@@ -1,3 +1,18 @@
+# Chiptracker
+
+Random changes to (http://www.linusakesson.net/hardware/chiptune.php)
+
+
+## Major changes
+
+Squashed PLAY/EDIT/IDLE modes down into one, because it felt difficult to
+move around nimbly. 
+
+TODO:  Add some extra info in song column, to show Track and Transposition columns.
+
+
+## Old (very useful) Documentation
+
 Hi!
 
 This is the tracker I used in the hardware chiptune project
@@ -26,7 +41,7 @@ to enter notes. The keyboard layout is adapted for a US qwerty keymap. You can
 edit gui.c to change this to fit a Dvorak keymap instead.
 
 Press ^E (control-E) to exit without saving. Press ^W ("write") to save. Press
-# to optimize the song (remove unused tracks, move tracks together) and % to
+\# to optimize the song (remove unused tracks, move tracks together) and % to
 export the song into a packed format. (% will always export to two files called
 "exported.s" and "exported.h" in the current working directory).
 

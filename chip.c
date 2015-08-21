@@ -4,6 +4,14 @@
 
 //static u16 callbackwait;
 
+volatile u8 test;
+volatile u8 testwait;
+
+u8 songwait;
+u8 trackpos;
+u16 songpos;
+
+u8 playsong;
 u8 playtrack;
 
 void silence() {
@@ -11,9 +19,66 @@ void silence() {
 
 	for(i = 0; i < 4; i++) {
 		osc[i].volume = 0;
+		channel[i].volumed = 0;
 	}
 	playsong = 0;
 	playtrack = 0;
+}
+
+
+void myruncmd(u8 ch, u8 cmd, u8 param, u8 context) {
+	// TODO:  bitcrush like in bitbox/lib/chiptune.c
+	switch(cmd) {
+		case 0:
+			channel[ch].inum = 0;
+			break;
+		case 'd':
+			osc[ch].duty = param << 8;
+			break;
+		case 'f':
+			channel[ch].volumed = param;
+			break;
+		case 'i':
+			channel[ch].inertia = param << 1;
+			break;
+		case 'j':
+			channel[ch].iptr = param;
+			break;
+		case 'l':
+			channel[ch].bendd = param;
+			break;
+		case 'm':
+			channel[ch].dutyd = param << 6;
+			break;
+		case 't':
+			if (!context)
+				channel[ch].iwait = param;
+			else 
+				songspeed = param;
+			break;
+		case 'v':
+			osc[ch].volume = param;
+			break;
+		case 'w':
+			osc[ch].waveform = param;
+			break;
+		case '+':
+			channel[ch].inote = param + channel[ch].tnote - 12 * 4;
+			break;
+		case '=':
+			if (!context)
+				channel[ch].inote = param;
+			else
+				channel[ch].lastinstr = param;
+			break;
+		case '~':
+			if(channel[ch].vdepth != (param >> 4)) {
+				channel[ch].vpos = 0;
+			}
+			channel[ch].vdepth = param >> 4;
+			channel[ch].vrate = param & 15;
+			break;
+	}
 }
 
 void iedplonk(int note, int instr) {
@@ -34,7 +99,7 @@ void startplaytrack(int t) {
 	channel[2].tnum = 0;
 	channel[3].tnum = 0;
 	trackpos = 0;
-	trackwait = 0;
+	songwait = 0;
 	playtrack = 1;
 	playsong = 0;
 }
@@ -42,7 +107,7 @@ void startplaytrack(int t) {
 void startplaysong(int p) {
 	songpos = p;
 	trackpos = 0;
-	trackwait = 0;
+	songwait = 0;
 	playtrack = 0;
 	playsong = 1;
 }
@@ -51,10 +116,10 @@ void playroutine() {			// called at 50 Hz
 	u8 ch;
 
 	if(playtrack || playsong) {
-		if(trackwait) {
-			trackwait--;
+		if(songwait) {
+			songwait--;
 		} else {
-			trackwait = 4;
+			songwait = songspeed;
 
 			if(!trackpos) {
 				if(playsong) {
@@ -99,14 +164,15 @@ void playroutine() {			// called at 50 Hz
 							channel[ch].vdepth = 0;
 						}
 						if(tl.cmd[0])
-							runcmd(ch, packcmd(tl.cmd[0]), tl.param[0]);
-						/*if(tl.cmd[1])
-							runcmd(ch, packcmd(tl.cmd[1]), tl.param[1]);*/
+							myruncmd(ch, tl.cmd[0], tl.param[0], 1);
+						if(tl.cmd[1])
+							myruncmd(ch, tl.cmd[1], tl.param[1], 2);
 					}
 				}
 
 				trackpos++;
-				trackpos &= 31;
+				if (trackpos == tracklen)
+					trackpos = 0;
 			}
 		}
 	}
@@ -122,7 +188,8 @@ void playroutine() {			// called at 50 Hz
 			readinstr(channel[ch].inum, channel[ch].iptr, il);
 			channel[ch].iptr++;
 
-			runcmd(ch, packcmd(il[0]), il[1]);
+			//myruncmd(ch, packcmd(il[0]), il[1], 0);
+			myruncmd(ch, il[0], il[1], 0);
 		}
 		if(channel[ch].iwait) channel[ch].iwait--;
 
@@ -162,7 +229,7 @@ void playroutine() {			// called at 50 Hz
 }
 
 void initchip() {
-	trackwait = 0;
+	songwait = 0;
 	trackpos = 0;
 	playsong = 0;
 	playtrack = 0;

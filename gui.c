@@ -10,15 +10,110 @@
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
 
 int songx, songy, songoffs;
-int trackx, tracky, trackoffs, tracklen = TRACKLEN;
+u16 songlen = 1;
+int trackx, tracky, trackoffs;
 int instrx, instry, instroffs;
 int currtrack = 1, currinstr = 1;
 int currtab = 0;
 int octave = 4;
+int tracklen = 32;
+u8 songspeed = 4;
 
-char filename[60];
+char filename[32];
+char cmd[16] = {0, 0}; // we do this to avoid undefined behavior in setcmd
+char cmdinput[32];
+u8 cmdinputpos;
+u8 cmdinputnumeric;
+char alert[64];
 
+void setalert(const char *alerto)
+{
+	snprintf(alert, sizeof(alert), "%s", alerto);
+}
+
+#ifdef GERMAN_KEYS
 static const char * const notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "H-"};
+#else
+static const char * const notenames[] = {"C-", "C#", "D-", "Eb", "E-", "F-", "F#", "G-", "Ab", "A-", "Bb", "B-"};
+#endif
+
+void setcmd(const char *cmdo)
+{
+	alert[0] = 0; // remove any alert
+	if(!cmd[0]) // if cmd had nothing in it
+	{
+		snprintf(cmd, sizeof(cmd), "%s", cmdo);
+		if (cmd[1] != cmdo[1]) // check if the previous command was the desired command
+		{	// if not, then we need to remove previous input.
+			cmdinput[0] = 0; // kill previous input
+			cmdinputpos = 0;
+		}
+	}
+	else if (cmd[0] != cmdo[0]) // command did not start with cmdo[0]
+	{
+		snprintf(cmd, sizeof(cmd), "%s", cmdo);
+		cmdinput[0] = 0;	// zero the input string, we just changed input.
+		cmdinputpos = 0;
+	}
+	else // cmd[0] was cmdo[0], so we want to remove command.
+	{
+		cmd[0] = 0;
+		return;
+	}
+	switch (cmd[0])
+	{
+	case 'n': // name of file
+	case 'f': // file to open
+		cmdinputnumeric = 0;
+		break;
+	case 't': // tracklength
+	case 's': // songspeed 
+		cmdinputnumeric = 1;
+		break;
+	}
+}
+
+void evalcmd()
+{
+	if (cmdinput[0])
+	{
+		int result;
+		switch (cmd[0])
+		{
+		case 'n': // name of file
+			snprintf(filename, sizeof(filename), "%s", cmdinput);
+			break;
+		case 'f': // file to open
+			loadfile(cmdinput);
+			break;
+		case 't': // tracklength
+			if (1 == sscanf(cmdinput, "%d", &result))
+			{
+				if (result > 0 && result < 257)
+					tracklen = result;
+				else
+					setalert("need tracklength > 0 and < 257");
+			}
+			else
+				setalert("unknown input!!");
+			break;
+		case 's': // songspeed 
+			if (1 == sscanf(cmdinput, "%d", &result))
+			{
+				if (result > 0 && result < 256)
+					songspeed = result;
+				else
+					setalert("need songspeed > 0 and < 256");
+			}
+			else
+				setalert("unknown input!!");
+			break;
+		}
+	}
+	cmd[0] = 0;
+	cmdinput[0] = 0;
+	cmdinputpos = 0;
+}
 
 static const char * const validcmds = "0dfijlmtvw~+=";
  
@@ -54,11 +149,11 @@ struct track track[256], tclip;
 struct songline song[256];
 
 enum {
-	PM_IDLE,
-	PM_PLAY,
-	PM_EDIT
+	MODE_NONE = 0,
+	MODE_PLAY = 1,
+	MODE_EDIT = 2
 };
-int playmode = PM_IDLE;
+int mode = MODE_NONE;
 
 int hexdigit(char c) {
 	if(c >= '0' && c <= '9') return c - '0';
@@ -124,6 +219,10 @@ void savefile(char *fname) {
 	fprintf(f, "musicchip tune\n");
 	fprintf(f, "version 1\n");
 	fprintf(f, "\n");
+	if(tracklen != 32)
+	{
+		 fprintf(f, "tracklength %02x\n\n", tracklen);
+	}
 	for(i = 0; i < songlen; i++) {
 		fprintf(f, "songline %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 			i,
@@ -183,6 +282,7 @@ void loadfile(char *fname) {
 
 	f = fopen(fname, "r");
 	if(!f) {
+		snprintf(alert, sizeof(alert), "no succeed in opening file.");
 		return;
 	}
 
@@ -229,6 +329,8 @@ void loadfile(char *fname) {
 			instrument[i1].line[i2].cmd = cmd[0];
 			instrument[i1].line[i2].param = param[0];
 			if(instrument[i1].length <= i2) instrument[i1].length = i2 + 1;
+		} else if(1 == sscanf(buf, "tracklength %x", &i)) {
+			tracklen = i;
 		}
 	}
 
@@ -365,29 +467,24 @@ void drawinstred(int x, int y, int height) {
 }
 
 void drawmodeinfo(int x, int y) {
-	switch(playmode) {
-		case PM_IDLE:
-			if(currtab == 2) {
-				mvaddstr(y, x, "PLAY         IDLE space-> EDIT");
-			} else {
-				mvaddstr(y, x, "PLAY <-enter IDLE space-> EDIT");
-			}
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 13, "IDLE");
-			attrset(A_NORMAL);
-			break;
-		case PM_PLAY:
-			mvaddstr(y, x, "PLAY space-> IDLE         EDIT");
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 0, "PLAY");
-			attrset(A_NORMAL);
-			break;
-		case PM_EDIT:
-			mvaddstr(y, x, "PLAY         IDLE <-space EDIT");
-			attrset(A_REVERSE);
-			mvaddstr(y, x + 26, "EDIT");
-			attrset(A_NORMAL);
-			break;
+	if (mode & MODE_EDIT)
+	{
+		mvaddstr(y, x,	 "enter [lock]");
+		//attrset(A_REVERSE);
+		//mvaddstr(y, x, "EDIT");
+		//attrset(A_NORMAL);
+	}
+	else
+	{
+		mvaddstr(y, x,	 "enter [unlock]");
+	}
+	if (mode & MODE_PLAY)
+	{
+		mvaddstr(y+1, x, "space [stop play]");
+	}
+	else
+	{
+		mvaddstr(y+1, x, "space [play]");
 	}
 }
 
@@ -581,7 +678,7 @@ void export() {
 		}
 	}
 
-	fprintf(f, "\tstatic const uint8_t \tsongdata[] = {\n\n");
+	fprintf(f, "const unsigned char \tsongdata[] = {\n\n");
 
 	fprintf(hf, "#define MAXTRACK\t0x%02x\n", maxtrack);
 	fprintf(hf, "#define SONGLEN\t\t0x%02x\n", songlen);
@@ -595,7 +692,7 @@ void export() {
 	fprintf(f, "\n");
 
 	exportdata(f, maxtrack, resources);
-	fprintf(f, "}\n");
+	fprintf(f, "};\n");
 
 	fclose(f);
 	fclose(hf);
@@ -603,30 +700,110 @@ void export() {
 }
 
 void handleinput() {
-	int c = 0, x;
-	
-	if((c = getch()) != KEY_ERR) switch(c) {
-		case 10:
-		case 13:
-			if(currtab != 2) {
-				playmode = PM_PLAY;
+int c, x;
+if ((c = getch()) != KEY_ERR)
+{
+	if (cmd[0])
+	{
+		//	 period   numbers			  uppercase letters   lowercase letters		_ or -
+		if ( c==46 || (c>=48 && c<=57) || (c>=65 && c<=90) || (c>=97 && c<=122) || (c == 95 || c == 45) )
+		{
+			if (cmdinputnumeric)
+			{
+				// only allow inputting numbers
+				if (c>=48 && c<=57)
+				{
+					if (cmdinputpos < 2)
+					{
+						cmdinput[cmdinputpos] = c;
+						cmdinput[++cmdinputpos] = 0;
+					}
+					else
+					{
+						cmdinput[cmdinputpos] = c;
+						cmdinput[cmdinputpos+1] = 0;
+					}
+				}
+			}
+			else
+			{
+				if (cmdinputpos < 31)
+				{
+					cmdinput[cmdinputpos] = c;
+					cmdinput[++cmdinputpos] = 0;
+				}
+				else
+					cmdinput[cmdinputpos] = c;
+			}
+		}
+		else switch (c)
+		{
+		case 8:
+			if (cmdinputpos > 0)
+				cmdinput[--cmdinputpos] = 0;
+			break;
+		case '\n':
+			evalcmd();
+			break;
+		case 'T' - '@':
+			setcmd("tracklength");
+			break;
+		case 'F' - '@':
+			setcmd("name of file");
+			break;
+		case 'O' - '@':
+			setcmd("file to open");
+			break;
+		case 'S' - '@':
+			setcmd("songspeed");
+			break;
+		case 'E' - '@':
+			cmd[0] = 0;
+			break;
+		}
+	}
+	else switch(c) {
+		case ' ':
+			if (mode & MODE_PLAY)
+			{
+				// stop play
+				mode -= MODE_PLAY;
+				silence();
+			}
+			else
+			{
+				// start play
+				mode += MODE_PLAY;
 				if(currtab == 1) {
 					startplaytrack(currtrack);
-				} else if(currtab == 0) {
+				} else if (currtab == 0) {
 					startplaysong(songy);
+					//TODO( add * to song to show where it is)
+				} else {
+					startplaysong(0);
 				}
 			}
 			break;
-		case ' ':
-			silence();
-			if(playmode == PM_IDLE) {
-				playmode = PM_EDIT;
-			} else {
-				playmode = PM_IDLE;
+		case 10: // enter:  toggle edit mode
+		case 13: // enter on other systems...
+			if (mode & MODE_EDIT) 
+			{
+				mode -= MODE_EDIT; // lock it down
+			}
+			else
+			{
+				mode += MODE_EDIT; // allow editing
 			}
 			break;
-		case 9: // TAB
+		case 'N' - '@':
+		case 'N':
+		case 9:
 			currtab++;
+			currtab %= 3;
+			break;
+		case 'P' - '@':
+		case 'P':
+			currtab--;
 			currtab %= 3;
 			break;
 #if 0
@@ -637,7 +814,22 @@ void handleinput() {
 			exit(0);
 			break;
 		case 'W' - '@':
-			//savefile(filename);
+			if (mode & MODE_EDIT)
+				savefile(filename);
+			break;
+		case 'T' - '@':
+			if (mode & MODE_EDIT)
+				setcmd("tracklength");
+			break;
+		case 'F' - '@':
+			setcmd("name of file");
+			break;
+		case 'O' - '@':
+			setcmd("file to open");
+			break;
+		case 'S' - '@':
+			if (mode & MODE_EDIT)
+				setcmd("songspeed");
 			break;
 #endif
 		case '<':
@@ -667,13 +859,12 @@ void handleinput() {
 				currtab = 0;
 			}
 			break;
-		case '\\':
-			optimize();
-			break;
-		case '=': // =
-			export();
-			break;
-
+//		case '#': // or '\\' ?
+//			optimize();
+//			break;
+//		case '%': // or '=' ?
+//			export();
+//			break;
 		case KEY_LEFT:
 			switch(currtab) {
 				case 0:
@@ -734,22 +925,28 @@ void handleinput() {
 					break;
 			}
 			break;
-		case 'C':
-			if(currtab == 2) {
-				memcpy(&iclip, &instrument[currinstr], sizeof(struct instrument));
-			} else if(currtab == 1) {
-				memcpy(&tclip, &track[currtrack], sizeof(struct track));
+		case 'C': // copy
+			if (mode & MODE_EDIT)
+			{
+				if(currtab == 2) {
+					memcpy(&iclip, &instrument[currinstr], sizeof(struct instrument));
+				} else if(currtab == 1) {
+					memcpy(&tclip, &track[currtrack], sizeof(struct track));
+				}
 			}
 			break;
-		case 'V':
-			if(currtab == 2) {
-				memcpy(&instrument[currinstr], &iclip, sizeof(struct instrument));
-			} else if(currtab == 1) {
-				memcpy(&track[currtrack], &tclip, sizeof(struct track));
+		case 'V': // paste
+			if (mode & MODE_EDIT)
+			{
+				if(currtab == 2) {
+					memcpy(&instrument[currinstr], &iclip, sizeof(struct instrument));
+				} else if(currtab == 1) {
+					memcpy(&track[currtrack], &tclip, sizeof(struct track));
+				}
 			}
 			break;
 		default:
-			if(playmode == PM_EDIT) {
+			if(mode & MODE_EDIT) {
 				x = hexdigit(c);
 				if(x >= 0) {
 					if(currtab == 2
@@ -867,7 +1064,8 @@ void handleinput() {
 						}
 					}
 				}
-			} else if(playmode == PM_IDLE) {
+			} 
+			else { // //if(mode & MODE_PLAY) 
 				x = freqkey(c);
 
 				if(x > 0) {
@@ -876,6 +1074,7 @@ void handleinput() {
 			}
 			break;
 	}
+}
 }
 
 void drawgui() {
@@ -886,14 +1085,28 @@ void drawgui() {
 	int instrcols[] = {0, 2, 3};
 
 	//erase();
-	mvaddstr(0, 0, "music chip tracker 0.1 by lft");
+	mvaddstr(0, 0, "music chip tracker");
 	drawmodeinfo(cols - 30, 0);
-	snprintf(buf, sizeof(buf), "Octave:   %d <>", octave);
-	mvaddstr(2, cols - 14, buf);
-	mvaddstr(3, cols - 14, "^W)rite ^E)xit");
+	if (mode & MODE_EDIT)
+	{
+		mvaddstr(3, cols - 30, "^O)pen ^E)xit ^W)rite ");
+	}
+	else
+	{
+		mvaddstr(3, cols - 30, "^O)pen ^E)xit");
+	}
+	snprintf(buf, sizeof(buf), "Octave: %d <>", octave);
+	mvaddstr(5, cols - 15, buf);
 
-	snprintf(buf, sizeof(buf), "^F)ilename:        %s", filename);
-	mvaddstr(2, 15, buf);
+	snprintf(buf, sizeof(buf), "^F)ilename:  %s", filename);
+	mvaddstr(2, 1, buf);
+	if (mode & MODE_EDIT)
+	{
+		snprintf(buf, sizeof(buf), "^S)ongspeed: %d", songspeed);
+		mvaddstr(3, 1, buf);
+		snprintf(buf, sizeof(buf), "^T)racklength: %d", tracklen);
+		mvaddstr(3, 29, buf);
+	}
 
 	mvaddstr(5, 0, "Song");
 	drawsonged(0, 6, lines - 12);
@@ -905,6 +1118,19 @@ void drawgui() {
 	snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
 	mvaddstr(5, 49, buf);
 	drawinstred(49, 6, lines - 12);
+
+	if (cmd[0])
+	{
+		snprintf(buf, sizeof(buf), "new %s? %s", cmd, cmdinput);
+	}
+	else
+	{
+		if (alert[0])
+			snprintf(buf, sizeof(buf), "%s", alert);	
+		else
+			snprintf(buf, sizeof(buf), "						");
+	}
+	mvaddstr(LINES-1, 1, buf);
 
 	switch(currtab) {
 		case 0:

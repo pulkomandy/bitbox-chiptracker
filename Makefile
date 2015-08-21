@@ -6,3 +6,8 @@ USE_CHIPTUNE = 1
 BITBOX ?= ../bitbox
 
 include $(BITBOX)/lib/bitbox.mk
+
+tracker:	main.o chip.o gui.o
+		gcc -o $@ $^ ${LDFLAGS}
+
+%.o:		%.c stuff.h Makefile

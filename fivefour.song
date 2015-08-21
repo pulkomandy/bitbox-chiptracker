@@ -1,0 +1,29 @@
+musicchip tune
+version 1
+
+tracklength 14
+
+songline 00 00 00 02 00 01 00 00 00
+songline 01 00 00 02 00 01 00 03 00
+
+trackline 01 00 31 01 00 00 00 00
+trackline 01 0a 36 01 00 00 00 00
+trackline 02 00 41 01 00 00 00 00
+trackline 02 05 3d 01 00 00 00 00
+trackline 02 0a 42 01 00 00 00 00
+trackline 02 0f 46 01 00 00 00 00
+trackline 03 00 49 01 00 00 00 00
+trackline 03 04 47 01 00 00 00 00
+trackline 03 08 46 01 00 00 00 00
+trackline 03 0c 44 01 00 00 00 00
+trackline 03 10 42 01 00 00 00 00
+
+instrumentline 01 00 2b 25
+instrumentline 01 01 77 03
+instrumentline 01 02 76 45
+instrumentline 01 03 74 02
+instrumentline 01 04 66 f0
+instrumentline 01 05 76 ff
+instrumentline 01 06 77 02
+instrumentline 01 07 7e 14
+instrumentline 01 08 69 00
