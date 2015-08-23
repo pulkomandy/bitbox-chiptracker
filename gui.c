@@ -26,6 +26,34 @@ u8 cmdinputpos;
 u8 cmdinputnumeric;
 char alert[64];
 
+struct instrline {
+	u8			cmd;
+	u8			param;
+};
+
+struct instrument {
+	int			length;
+	struct instrline	line[64];
+};
+
+struct songline {
+	u8			track[4];
+	u8			transp[4];
+};
+
+#define NINST 64
+// TODO: dynamically allocate these, they waste a lot of .bss
+struct instrument instrument[NINST], iclip;
+struct track track[32], tclip;
+struct songline song[256];
+
+enum {
+	MODE_NONE = 0,
+	MODE_PLAY = 1,
+	MODE_EDIT = 2
+};
+int mode = MODE_NONE;
+
 void setalert(const char *alerto)
 {
 	snprintf(alert, sizeof(alert), "%s", alerto);
@@ -126,34 +154,6 @@ static const char * const keymap[2] = {
 	"zsxdcvgbhnjm,l.;/",
 	"q2w3er5t6y7ui9o0p"
 };
-
-struct instrline {
-	u8			cmd;
-	u8			param;
-};
-
-struct instrument {
-	int			length;
-	struct instrline	line[64];
-};
-
-struct songline {
-	u8			track[4];
-	u8			transp[4];
-};
-
-#define NINST 64
-// TODO: dynamically allocate these, they waste a lot of .bss
-struct instrument instrument[NINST], iclip;
-struct track track[256], tclip;
-struct songline song[256];
-
-enum {
-	MODE_NONE = 0,
-	MODE_PLAY = 1,
-	MODE_EDIT = 2
-};
-int mode = MODE_NONE;
 
 int hexdigit(char c) {
 	if(c >= '0' && c <= '9') return c - '0';
