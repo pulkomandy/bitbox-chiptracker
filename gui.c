@@ -27,6 +27,41 @@ u8 cmdinputpos;
 bool cmdinputnumeric;
 char alert[64];
 
+struct instrline {
+	u8			cmd;
+	u8			param;
+};
+
+struct instrument {
+	int			length;
+	struct instrline	line[256];
+};
+
+struct songline {
+	u8			track[4];
+	u8			transp[4];
+};
+
+enum {
+	MODE_NONE = 0,
+	MODE_PLAY = 1,
+	MODE_EDIT = 2
+};
+
+int mode = MODE_NONE;
+
+struct instrument instrument[256], iclip;
+struct track track[256], tclip;
+struct songline song[256];
+
+void clear_song()
+{
+	memset(instrument, 0, sizeof(instrument));
+	memset(track, 0, sizeof(track));
+	memset(song, 0, sizeof(song));
+}
+
+
 void setalert(const char *alerto)
 {
 	snprintf(alert, sizeof(alert), "%s", alerto);
@@ -79,6 +114,9 @@ void evalcmd()
 			snprintf(filename, sizeof(filename), "%s", cmdinput);
 			break;
 		case 'f': // file to open
+			silence();
+			clear_song();
+			mode = MODE_NONE;
 			loadfile(cmdinput);
 			break;
 		case 't': // tracklength
@@ -123,32 +161,6 @@ char *keymap[2] = {
 	"zsxdcvgbhnjm,l.;/",
 	"q2w3er5t6y7ui9o0p"
 };
-
-struct instrline {
-	u8			cmd;
-	u8			param;
-};
-
-struct instrument {
-	int			length;
-	struct instrline	line[256];
-};
-
-struct songline {
-	u8			track[4];
-	u8			transp[4];
-};
-
-struct instrument instrument[256], iclip;
-struct track track[256], tclip;
-struct songline song[256];
-
-enum {
-	MODE_NONE = 0,
-	MODE_PLAY = 1,
-	MODE_EDIT = 2
-};
-int mode = MODE_NONE;
 
 int hexdigit(char c) {
 	if(c >= '0' && c <= '9') return c - '0';
@@ -278,6 +290,7 @@ void loadfile(char *fname) {
 		return;
 	}
 
+	tracklen = 32; // default
 	songlen = 1;
 	while(!feof(f) && fgets(buf, sizeof(buf), f)) {
 		if(9 == sscanf(buf, "songline %x %x %x %x %x %x %x %x %x",
