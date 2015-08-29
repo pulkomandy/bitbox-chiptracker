@@ -9,8 +9,15 @@ u8 songwait;
 u8 trackpos;
 u16 songpos;
 
+int tracklen = 32;
+u8 songspeed = 4;
+
 u8 playsong;
 u8 playtrack;
+
+struct instrument instrument[256];
+struct track track[256];
+struct songline song[256];
 
 const u16 freqtable[] = {
 	0x010b, 0x011b, 0x012c, 0x013e, 0x0151, 0x0165, 0x017a, 0x0191, 0x01a9,
@@ -24,21 +31,6 @@ const u16 freqtable[] = {
 	0x42f9, 0x46f5, 0x4b2d, 0x4fa6, 0x5462, 0x5967, 0x5eb7, 0x6459, 0x6a51,
 	0x70a3, 0x7756, 0x7e6f
 };
-
-#if 0
-const u16 freqtable[] = {
-	0x0085, 0x008d, 0x0096, 0x009f, 0x00a8, 0x00b2, 0x00bd, 0x00c8, 0x00d4,
-	0x00e1, 0x00ee, 0x00fc, 0x010b, 0x011b, 0x012c, 0x013e, 0x0151, 0x0165,
-	0x017a, 0x0191, 0x01a9, 0x01c2, 0x01dd, 0x01f9, 0x0217, 0x0237, 0x0259,
-	0x027d, 0x02a3, 0x02cb, 0x02f5, 0x0322, 0x0352, 0x0385, 0x03ba, 0x03f3,
-	0x042f, 0x046f, 0x04b2, 0x04fa, 0x0546, 0x0596, 0x05eb, 0x0645, 0x06a5,
-	0x070a, 0x0775, 0x07e6, 0x085f, 0x08de, 0x0965, 0x09f4, 0x0a8c, 0x0b2c,
-	0x0bd6, 0x0c8b, 0x0d4a, 0x0e14, 0x0eea, 0x0fcd, 0x10be, 0x11bd, 0x12cb,
-	0x13e9, 0x1518, 0x1659, 0x17ad, 0x1916, 0x1a94, 0x1c28, 0x1dd5, 0x1f9b,
-	0x217c, 0x237a, 0x2596, 0x27d3, 0x2a31, 0x2cb3, 0x2f5b, 0x322c, 0x3528,
-	0x3851, 0x3bab, 0x3f37
-};
-#endif
 
 const s8 sinetable[] = {
 	0, 12, 25, 37, 49, 60, 71, 81, 90, 98, 106, 112, 117, 122, 125, 126,
@@ -77,15 +69,38 @@ struct channel {
 } channel[4];
 
 void silence() {
-	u8 i;
-
-	for(i = 0; i < 4; i++) {
+	for(u8 i = 0; i < 4; i++) {
 		osc[i].volume = 0;
 		channel[i].volumed = 0;
 	}
 	playsong = 0;
 	playtrack = 0;
 }
+
+void readsong(int pos, int ch, u8 *dest) {
+	dest[0] = song[pos].track[ch];
+	dest[1] = song[pos].transp[ch];
+}
+
+void readtrack(int num, int pos, struct trackline *tl) {
+	tl->note = track[num].line[pos].note;
+	tl->instr = track[num].line[pos].instr;
+	tl->cmd[0] = track[num].line[pos].cmd[0];
+	tl->cmd[1] = track[num].line[pos].cmd[1];
+	tl->param[0] = track[num].line[pos].param[0];
+	tl->param[1] = track[num].line[pos].param[1];
+}
+
+void readinstr(int num, int pos, u8 *il) {
+	if(pos >= instrument[num].length) {
+		il[0] = 0;
+		il[1] = 0;
+	} else {
+		il[0] = instrument[num].line[pos].cmd;
+		il[1] = instrument[num].line[pos].param;
+	}
+}
+
 
 void runcmd(u8 ch, u8 cmd, u8 param, u8 context) {
 	// TODO:  bitcrush like in bitbox/lib/chiptune.c
@@ -175,7 +190,6 @@ void startplaysong(int p) {
 
 void playroutine() {			// called at 50 Hz
 	u8 ch;
-
 	if(playtrack || playsong) {
 		if(songwait) {
 			songwait--;

@@ -23,6 +23,21 @@ struct track {
 	struct trackline	line[256];
 };
 
+struct instrline {
+	u8			cmd;
+	u8			param;
+};
+
+struct instrument {
+	int			length;
+	struct instrline	line[256];
+};
+
+struct songline {
+	u8			track[4];
+	u8			transp[4];
+};
+
 
 void initchip();
 u8 interrupthandler();
@@ -39,7 +54,11 @@ void guiloop();
 
 void startplaysong(int);
 void startplaytrack(int);
+
+// input/output stuff
 void loadfile(char *);
+void savefile(char *);
+void clear_song();
 
 extern u8 trackpos;
 extern u8 playtrack;
@@ -48,3 +67,10 @@ extern u16 songpos;
 extern u16 songlen;
 extern u8 songspeed;
 extern int tracklen;
+
+extern struct songline song[256];
+extern struct track track[256];
+extern struct instrument instrument[256];
+
+extern char filename[1022];
+extern char alert[64];

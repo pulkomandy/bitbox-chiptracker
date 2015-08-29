@@ -4,6 +4,7 @@
 
 #include "stuff.h"
 
+/*
 const u16 instrptr[] = {
 	0, 1
 };
@@ -52,6 +53,7 @@ const struct track trackdata = {
 		{12*3+2,	1,	{0,	0},	{0,	0}},
 	}
 };
+*/
 
 void audiocb(void *userdata, Uint8 *buf, int len) {
 	int i;
