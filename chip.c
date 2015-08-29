@@ -11,18 +11,50 @@ u8 songwait;
 u8 trackpos;
 u16 songpos;
 
+int tracklen = 32;
+u8 songspeed = 4;
+
 u8 playsong;
 u8 playtrack;
 
-void silence() {
-	u8 i;
+struct instrument instrument[NINST];
+struct track track[32];
+struct songline song[256];
 
-	for(i = 0; i < 4; i++) {
+volatile struct oscillator osc[4];
+struct channel channel[4];
+
+void silence() {
+	for(u8 i = 0; i < 4; i++) {
 		osc[i].volume = 0;
 		channel[i].volumed = 0;
 	}
 	playsong = 0;
 	playtrack = 0;
+}
+
+void readsong(int pos, int ch, u8 *dest) {
+	dest[0] = song[pos].track[ch];
+	dest[1] = song[pos].transp[ch];
+}
+
+void readtrack(int num, int pos, struct trackline *tl) {
+	tl->note = track[num].line[pos].note;
+	tl->instr = track[num].line[pos].instr;
+	tl->cmd[0] = track[num].line[pos].cmd[0];
+	tl->cmd[1] = track[num].line[pos].cmd[1];
+	tl->param[0] = track[num].line[pos].param[0];
+	tl->param[1] = track[num].line[pos].param[1];
+}
+
+void readinstr(int num, int pos, u8 *il) {
+	if(pos >= instrument[num].length) {
+		il[0] = 0;
+		il[1] = 0;
+	} else {
+		il[0] = instrument[num].line[pos].cmd;
+		il[1] = instrument[num].line[pos].param;
+	}
 }
 
 
@@ -114,7 +146,6 @@ void startplaysong(int p) {
 
 void playroutine() {			// called at 50 Hz
 	u8 ch;
-
 	if(playtrack || playsong) {
 		if(songwait) {
 			songwait--;

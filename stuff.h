@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#define NINST 64
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef int8_t s8;
@@ -17,6 +19,21 @@ struct trackline {
 
 struct track {
 	struct trackline	line[256];
+};
+
+struct instrline {
+	u8			cmd;
+	u8			param;
+};
+
+struct instrument {
+	int			length;
+	struct instrline	line[256];
+};
+
+struct songline {
+	u8			track[4];
+	u8			transp[4];
 };
 
 
@@ -36,7 +53,11 @@ int packcmd(u8 ch);
 
 void startplaysong(int);
 void startplaytrack(int);
+
+// input/output stuff
 void loadfile(char *);
+void savefile(char *);
+void clear_song();
 
 extern u8 trackpos;
 extern u8 playtrack;
@@ -45,3 +66,10 @@ extern u16 songpos;
 extern u16 songlen;
 extern u8 songspeed;
 extern int tracklen;
+
+extern struct songline song[256];
+extern struct track track[32];
+extern struct instrument instrument[NINST];
+
+extern char filename[32];
+extern char alert[64];
