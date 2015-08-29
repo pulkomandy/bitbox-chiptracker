@@ -41,18 +41,26 @@ struct songline {
 	u8			transp[4];
 };
 
-#define NINST 64
-// TODO: dynamically allocate these, they waste a lot of .bss
-struct instrument instrument[NINST], iclip;
-struct track track[32], tclip;
-struct songline song[256];
-
 enum {
 	MODE_NONE = 0,
 	MODE_PLAY = 1,
 	MODE_EDIT = 2
 };
 int mode = MODE_NONE;
+
+#define NINST 64
+// TODO: dynamically allocate these, they waste a lot of .bss
+struct instrument instrument[NINST], iclip;
+struct track track[32], tclip;
+struct songline song[256];
+
+void clear_song()
+{
+	memset(instrument, 0, sizeof(instrument));
+	memset(track, 0, sizeof(track));
+	memset(song, 0, sizeof(song));
+}
+
 
 void setalert(const char *alerto)
 {
@@ -112,6 +120,9 @@ void evalcmd()
 			snprintf(filename, sizeof(filename), "%s", cmdinput);
 			break;
 		case 'f': // file to open
+			silence();
+			clear_song();
+			mode = MODE_NONE;
 			loadfile(cmdinput);
 			break;
 		case 't': // tracklength
@@ -286,6 +297,7 @@ void loadfile(char *fname) {
 		return;
 	}
 
+	tracklen = 32; // default
 	songlen = 1;
 	while(!feof(f) && fgets(buf, sizeof(buf), f)) {
 		if(9 == sscanf(buf, "songline %x %x %x %x %x %x %x %x %x",
