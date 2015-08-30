@@ -3,6 +3,11 @@
 #include <stdint.h>
 
 #define NINST 64
+#define NINSTLINE 50  // number of lines to make an instrument
+#define NTRACK 64
+#define NTRACKLINE 16382
+
+void message (const char *fmt, ...);
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -17,9 +22,11 @@ struct trackline {
 	u8	param[2];
 };
 
+/*
 struct track {
 	struct trackline	line[256];
 };
+*/
 
 struct instrline {
 	u8			cmd;
@@ -28,7 +35,7 @@ struct instrline {
 
 struct instrument {
 	int			length;
-	struct instrline	line[256];
+	struct instrline	line[NINSTLINE];
 };
 
 struct songline {
@@ -55,6 +62,7 @@ void startplaysong(int);
 void startplaytrack(int);
 
 // input/output stuff
+void initio();
 void loadfile(char *);
 void savefile(char *);
 void clear_song();
@@ -64,12 +72,19 @@ extern u8 playtrack;
 extern u8 playsong;
 extern u16 songpos;
 extern u16 songlen;
+extern u16 numtracks;
 extern u8 songspeed;
 extern int tracklen;
 
 extern struct songline song[256];
-extern struct track track[32];
+//extern struct track track[NTRACK];
+extern struct trackline tracking[NTRACKLINE];
 extern struct instrument instrument[NINST];
+inline struct trackline *track(int track_index, int track_pos)
+{
+    return &tracking[(track_index-1)*tracklen + track_pos];
+}
+int realign_tracks(int new_tracklen);
 
 extern char filename[32];
 extern char alert[64];

@@ -1,31 +1,40 @@
-#ifdef EMULATOR
+#include "fatfs/ff.h"
 #include <stdio.h>
-#endif
 #include <string.h> // memset
 #include "stuff.h"
 
 char filename[32];
+u16 numtracks;
+
+FATFS fat_fs;
+uint8_t fat_mount;
+
+void initio()
+{
+	FRESULT fat_result = f_mount(&fat_fs, "", 1);
+	if (fat_result == FR_OK)
+		fat_mount = 1;
+	else
+		fat_mount = 0;
+}
 
 void savefile(char *fname) {
-#ifdef EMULATOR
-	FILE *f;
-	int i, j;
-
-	f = fopen(fname, "w");
-	if(!f) {
-		fprintf(stderr, "save error!\n");
+if (fat_mount) {
+	FIL fat_file;
+	FRESULT fat_result = f_open(&fat_file,fname, FA_WRITE | FA_OPEN_ALWAYS);
+	if (fat_result != FR_OK) {
+		snprintf(alert, sizeof(alert), "error saving!");
 		return;
 	}
 
-	fprintf(f, "musicchip tune\n");
-	fprintf(f, "version 1\n");
-	fprintf(f, "\n");
+	int i, j;
+	f_printf(&fat_file, "musicchip tune\nversion 1\n\n");
 	if(tracklen != 32)
 	{
-		 fprintf(f, "tracklength %02x\n\n", tracklen);
+		 f_printf(&fat_file, "tracklength %02x\n\n", tracklen);
 	}
 	for(i = 0; i < songlen; i++) {
-		fprintf(f, "songline %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		f_printf(&fat_file, "songline %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 			i,
 			song[i].track[0],
 			song[i].transp[0],
@@ -36,13 +45,12 @@ void savefile(char *fname) {
 			song[i].track[3],
 			song[i].transp[3]);
 	}
-	fprintf(f, "\n");
-	for(i = 1; i < 256; i++) {
+	f_printf(&fat_file, "\n");
+	struct trackline *tl = track(1,0);
+	for(i = 1; i <= numtracks; i++) {
 		for(j = 0; j < tracklen; j++) {
-			struct trackline *tl = &track[i].line[j];
-
 			if(tl->note || tl->instr || tl->cmd[0] || tl->cmd[1]) {
-				fprintf(f, "trackline %02x %02x %02x %02x %02x %02x %02x %02x\n",
+				f_printf(&fat_file, "trackline %02x %02x %02x %02x %02x %02x %02x %02x\n",
 					i,
 					j,
 					tl->note,
@@ -52,13 +60,14 @@ void savefile(char *fname) {
 					tl->cmd[1],
 					tl->param[1]);
 			}
+			tl++;
 		}
 	}
-	fprintf(f, "\n");
+	f_printf(&fat_file, "\n");
 	for(i = 1; i < NINST; i++) {
 		if(instrument[i].length > 1) {
 			for(j = 0; j < instrument[i].length; j++) {
-				fprintf(f, "instrumentline %02x %02x %02x %02x\n",
+				f_printf(&fat_file, "instrumentline %02x %02x %02x %02x\n",
 					i,
 					j,
 					instrument[i].line[j].cmd,
@@ -67,29 +76,30 @@ void savefile(char *fname) {
 		}
 	}
 
-	fclose(f);
-    #endif
+	f_close(&fat_file);
+}
+else
+	snprintf(alert, sizeof(alert), "error: no SD card mounted!");
 }
 
 void loadfile(char *fname) {
-    #ifdef EMULATOR
-	FILE *f;
-	char buf[1024];
+if (fat_mount) {
+	FIL fat_file;
+	FRESULT fat_result = f_open(&fat_file, fname, FA_READ);
+	snprintf(filename, sizeof(filename), "%s", fname);
+	if(fat_result != FR_OK) {
+		snprintf(alert, sizeof(alert), "no succeed in opening file.");
+		return;
+	}
+	char buf[128];
 	int cmd[3];
 	int i1, i2, trk[4], transp[4], param[3], note, instr;
 	int i;
 
-	snprintf(filename, sizeof(filename), "%s", fname);
-
-	f = fopen(fname, "r");
-	if(!f) {
-		snprintf(alert, sizeof(alert), "no succeed in opening file.");
-		return;
-	}
-
 	tracklen = 32; // default
+	numtracks = 0;
 	songlen = 1;
-	while(!feof(f) && fgets(buf, sizeof(buf), f)) {
+	while(f_gets(buf, sizeof(buf), &fat_file)) {
 		if(9 == sscanf(buf, "songline %x %x %x %x %x %x %x %x %x",
 			&i1,
 			&trk[0],
@@ -116,11 +126,13 @@ void loadfile(char *fname) {
 			&cmd[1],
 			&param[1])) {
 
-			track[i1].line[i2].note = note;
-			track[i1].line[i2].instr = instr;
+			if (i1 > numtracks)
+				numtracks = i1;
+			track(i1, i2)->note = note;
+			track(i1, i2)->instr = instr;
 			for(i = 0; i < 2; i++) {
-				track[i1].line[i2].cmd[i] = cmd[i];
-				track[i1].line[i2].param[i] = param[i];
+				track(i1, i2)->cmd[i] = cmd[i];
+				track(i1, i2)->param[i] = param[i];
 			}
 		} else if(4 == sscanf(buf, "instrumentline %x %x %x %x",
 			&i1,
@@ -136,17 +148,63 @@ void loadfile(char *fname) {
 		}
 	}
 
-	fclose(f);
-    #endif
+	f_close(&fat_file);
+}
+else
+	snprintf(alert, sizeof(alert), "error: no SD card mounted!");
 }
 
 void clear_song()
 {
 	memset(instrument, 0, sizeof(instrument));
-	memset(track, 0, sizeof(track));
+	memset(tracking, 0, sizeof(tracking));
 	memset(song, 0, sizeof(song));
 }
 
+int realign_tracks(int new_tracklen)
+{
+	if (new_tracklen == tracklen)
+		return 0;
+	// return 0 if everything went fine,
+	// return 1 if we lost a few tracks since we have a huge new tracklen
+	int returnvalue = 0;
+	if (new_tracklen > tracklen)
+	{
+		for (int fix_index=numtracks; fix_index>1; fix_index--)
+		{
+			if (fix_index*new_tracklen >= NTRACKLINE)
+			{
+				returnvalue = 1;
+				numtracks--;
+			}
+			else
+			{
+				struct trackline *src = &tracking[(fix_index-1)*tracklen];
+				struct trackline *dest = &tracking[(fix_index-1)*new_tracklen];
+				// copy the original track into the new spot
+				memcpy(dest, src, tracklen*sizeof(struct trackline));
+				dest += tracklen;
+				// zero out the rest of the track
+				memset(dest, 0, (new_tracklen-tracklen)*sizeof(struct trackline));
+			}
+		}
+		// zero out the rest of the track 1
+		memset(&tracking[tracklen], 0, (new_tracklen-tracklen)*sizeof(struct trackline));
+	}
+	else
+	{
+		for (int fix_index=2; fix_index<=numtracks; fix_index++)
+		{
+			struct trackline *src = &tracking[(fix_index-1)*tracklen];
+			struct trackline *dest = &tracking[(fix_index-1)*new_tracklen];
+			// copy the original track into the new spot
+			memcpy(dest, src, new_tracklen*sizeof(struct trackline));
+		}
+
+	}
+	tracklen = new_tracklen;
+	return returnvalue; // if everything is alright
+}
 
 //
 //
@@ -305,21 +363,21 @@ void export() {
 		}
 	}
 
-	fprintf(f, "const unsigned char \tsongdata[] = {\n\n");
+	f_printf(&fat_file, "const unsigned char \tsongdata[] = {\n\n");
 
 	fprintf(hf, "#define MAXTRACK\t0x%02x\n", maxtrack);
 	fprintf(hf, "#define SONGLEN\t\t0x%02x\n", songlen);
 
 	exportdata(0, maxtrack, resources);
 
-	fprintf(f, "// ");
+	f_printf(&fat_file, "// ");
 	for(i = 0; i < 16 + maxtrack; i++) {
-		fprintf(f, "%04x ", resources[i]);
+		f_printf(&fat_file, "%04x ", resources[i]);
 	}
-	fprintf(f, "\n");
+	f_printf(&fat_file, "\n");
 
 	exportdata(f, maxtrack, resources);
-	fprintf(f, "};\n");
+	f_printf(&fat_file, "};\n");
 
 	fclose(f);
 	fclose(hf);

@@ -4,6 +4,16 @@
 #include "ncurses.h"
 #include <math.h>
 
+// TODO:  
+// * make numtracks go up when adding a note to a track, not just when moving to a new one
+// * fix silent play-track bug when adding a new track, or also randomly
+// * remove "EXIT"  from gui
+// * efficiently clear out instrument column when changing instrument when next one has less length
+// * fix bug when hitting shift in instrument list (displays weird character)
+// * shift+space -> play song from beginning
+// * ctrl+space -> loop song?
+
+
 #include "stuff.h"
 
 // choose the way to write your scale here:
@@ -45,7 +55,7 @@ enum {
 int mode = MODE_NONE;
 
 struct instrument iclip;
-struct track tclip;
+struct trackline tclip[256];
 
 void setalert(const char *alerto)
 {
@@ -102,13 +112,24 @@ void evalcmd()
 			silence();
 			clear_song();
 			mode = MODE_NONE;
+ 			erase();
+			songx = 0;
+			songy = 0;
 			loadfile(cmdinput);
 			break;
 		case 't': // tracklength
 			if (1 == sscanf(cmdinput, "%d", &result))
 			{
 				if (result > 0 && result < 257)
-					tracklen = result;
+				{
+					if (realign_tracks(result))
+					{
+						setalert("lost some higher tracks due to memory constraints!");
+						if (currtrack*tracklen > NTRACKLINE)
+							currtrack = NTRACKLINE/tracklen;
+					}
+					erase();
+				}
 				else
 					setalert("need tracklength > 0 and < 257");
 			}
@@ -224,21 +245,21 @@ void drawtracked(int x, int y, int height) {
 			if(i == tracky) attrset(A_BOLD);
 			snprintf(buf, sizeof(buf), "%02x: ", i);
 			addstr(buf);
-			if(track[currtrack].line[i].note) {
+			if(track(currtrack,i)->note) {
 				snprintf(buf, sizeof(buf), "%s%d",
-					notenames[(track[currtrack].line[i].note - 1) % 12],
-					(track[currtrack].line[i].note - 1) / 12);
+					notenames[(track(currtrack,i)->note - 1) % 12],
+					(track(currtrack,i)->note - 1) / 12);
 			} else {
 				snprintf(buf, sizeof(buf), "---");
 			}
 			addstr(buf);
-			snprintf(buf, sizeof(buf), " %02x", track[currtrack].line[i].instr);
+			snprintf(buf, sizeof(buf), " %02x", track(currtrack,i)->instr);
 			addstr(buf);
 			for(j = 0; j < 2; j++) {
-				if(track[currtrack].line[i].cmd[j]) {
+				if(track(currtrack,i)->cmd[j]) {
 					snprintf(buf, sizeof(buf), " %c%02x",
-						track[currtrack].line[i].cmd[j],
-						track[currtrack].line[i].param[j]);
+						track(currtrack,i)->cmd[j],
+						track(currtrack,i)->param[j]);
 				} else {
 					snprintf(buf, sizeof(buf), " ...");
 				}
@@ -420,6 +441,7 @@ if ((c = getch()) != KEY_ERR)
 			//endwin();
 			exit(0);
 			break;
+#endif
 		case 'W' - '@':
 			if (mode & MODE_EDIT)
 				savefile(filename);
@@ -438,7 +460,6 @@ if ((c = getch()) != KEY_ERR)
 			if (mode & MODE_EDIT)
 				setcmd("songspeed");
 			break;
-#endif
 		case '<':
 			if(octave) octave--;
 			break;
@@ -446,16 +467,32 @@ if ((c = getch()) != KEY_ERR)
 			if(octave < 8) octave++;
 			break;
 		case '[':
-			if(currinstr > 1) currinstr--;
+			if(currinstr > 1) {
+				currinstr--;
+				if (instrument[currinstr].length < instrument[currinstr+1].length)
+					erase();
+			}
 			break;
 		case ']':
-			if(currinstr < 255) currinstr++;
+			if(currinstr < NINST-1) {
+				currinstr++;
+				if (instrument[currinstr].length < instrument[currinstr-1].length)
+					erase();
+			}
 			break;
 		case '{':
 			if(currtrack > 1) currtrack--;
 			break;
 		case '}':
-			if(currtrack < 255) currtrack++;
+			if((currtrack+1)*tracklen <= NTRACKLINE)  {
+				currtrack++;
+				// update the number of tracks -- TODO: probably should wait to put
+				// something in them, but nevertheless keep track of it.
+				if (numtracks < currtrack) 
+					numtracks = currtrack;
+			} else {
+				setalert("can't fit anymore tracks into memory.");
+			}
 			break;
 		case '`':
 			if(currtab == 0) {
@@ -538,7 +575,7 @@ if ((c = getch()) != KEY_ERR)
 				if(currtab == 2) {
 					memcpy(&iclip, &instrument[currinstr], sizeof(struct instrument));
 				} else if(currtab == 1) {
-					memcpy(&tclip, &track[currtrack], sizeof(struct track));
+					memcpy(&tclip, &tracking[tracklen*currtrack], tracklen*sizeof(struct trackline));
 				}
 			}
 			break;
@@ -548,7 +585,7 @@ if ((c = getch()) != KEY_ERR)
 				if(currtab == 2) {
 					memcpy(&instrument[currinstr], &iclip, sizeof(struct instrument));
 				} else if(currtab == 1) {
-					memcpy(&track[currtrack], &tclip, sizeof(struct track));
+					memcpy(&tracking[tracklen*currtrack], &tclip, tracklen*sizeof(struct trackline));
 				}
 			}
 			break;
@@ -567,16 +604,16 @@ if ((c = getch()) != KEY_ERR)
 					}
 					if(currtab == 1 && trackx > 0) {
 						switch(trackx) {
-							case 1: SETHI(track[currtrack].line[tracky].instr, x); break;
-							case 2: SETLO(track[currtrack].line[tracky].instr, x); break;
-							case 4: if(track[currtrack].line[tracky].cmd[0])
-								SETHI(track[currtrack].line[tracky].param[0], x); break;
-							case 5: if(track[currtrack].line[tracky].cmd[0])
-								SETLO(track[currtrack].line[tracky].param[0], x); break;
-							case 7: if(track[currtrack].line[tracky].cmd[1])
-								SETHI(track[currtrack].line[tracky].param[1], x); break;
-							case 8: if(track[currtrack].line[tracky].cmd[1])
-								SETLO(track[currtrack].line[tracky].param[1], x); break;
+							case 1: SETHI(track(currtrack,tracky)->instr, x); break;
+							case 2: SETLO(track(currtrack,tracky)->instr, x); break;
+							case 4: if(track(currtrack,tracky)->cmd[0])
+								SETHI(track(currtrack,tracky)->param[0], x); break;
+							case 5: if(track(currtrack,tracky)->cmd[0])
+								SETLO(track(currtrack,tracky)->param[0], x); break;
+							case 7: if(track(currtrack,tracky)->cmd[1])
+								SETHI(track(currtrack,tracky)->param[1], x); break;
+							case 8: if(track(currtrack,tracky)->cmd[1])
+								SETLO(track(currtrack,tracky)->param[1], x); break;
 						}
 					}
 					if(currtab == 0) {
@@ -596,11 +633,11 @@ if ((c = getch()) != KEY_ERR)
 						instrument[currinstr].line[instry].param = x;
 					}
 					if(currtab == 1 && !trackx) {
-						track[currtrack].line[tracky].note = x;
+						track(currtrack,tracky)->note = x;
 						if(x) {
-							track[currtrack].line[tracky].instr = currinstr;
+							track(currtrack,tracky)->instr = currinstr;
 						} else {
-							track[currtrack].line[tracky].instr = 0;
+							track(currtrack,tracky)->instr = 0;
 						}
 						tracky++;
 						tracky %= tracklen;
@@ -615,14 +652,14 @@ if ((c = getch()) != KEY_ERR)
 				if(currtab == 1 && (trackx == 3 || trackx == 6 || trackx == 9)) {
 					if(strchr(validcmds, c)) {
 						if(c == '.' || c == '0') c = 0;
-						track[currtrack].line[tracky].cmd[(trackx - 3) / 3] = c;
+						track(currtrack,tracky)->cmd[(trackx - 3) / 3] = c;
 					}
 				}
 				if(c == 'A') {
 					if(currtab == 2) {
 						struct instrument *in = &instrument[currinstr];
 
-						if(in->length < 256) {
+						if(in->length < NINSTLINE) {
 							memmove(&in->line[instry + 2], &in->line[instry + 1], sizeof(struct instrline) * (in->length - instry - 1));
 							instry++;
 							in->length++;
@@ -641,7 +678,7 @@ if ((c = getch()) != KEY_ERR)
 					if(currtab == 2) {
 						struct instrument *in = &instrument[currinstr];
 
-						if(in->length < 256) {
+						if(in->length < NINSTLINE) {
 							memmove(&in->line[instry + 1], &in->line[instry + 0], sizeof(struct instrline) * (in->length - instry));
 							in->length++;
 							in->line[instry].cmd = '0';
@@ -692,62 +729,63 @@ void drawgui() {
 	int instrcols[] = {0, 2, 3};
 
 	//erase();
-	mvaddstr(0, 0, "music chip tracker");
-	drawmodeinfo(cols - 30, 0);
-	if (mode & MODE_EDIT)
-	{
-		mvaddstr(3, cols - 30, "^O)pen ^E)xit ^W)rite ");
-	}
-	else
-	{
-		mvaddstr(3, cols - 30, "^O)pen ^E)xit");
-	}
-	snprintf(buf, sizeof(buf), "Octave: %d <>", octave);
-	mvaddstr(5, cols - 15, buf);
+	mvaddstr(0, 0, " music chip tracker");
+	drawmodeinfo(cols - 28, 0);
 
 	snprintf(buf, sizeof(buf), "^F)ilename:  %s", filename);
 	mvaddstr(2, 1, buf);
 	if (mode & MODE_EDIT)
 	{
-		snprintf(buf, sizeof(buf), "^S)ongspeed: %d", songspeed);
+		snprintf(buf, sizeof(buf), "^S)ongspeed: %d  ", songspeed);
 		mvaddstr(3, 1, buf);
-		snprintf(buf, sizeof(buf), "^T)racklength: %d", tracklen);
-		mvaddstr(3, 29, buf);
+		snprintf(buf, sizeof(buf), "^T)racklength: %d  ", tracklen);
+		mvaddstr(3, 30, buf);
+		mvaddstr(3, cols - 29, "^O)pen ^E)xit ^W)rite");
+	}
+	else
+	{
+		snprintf(buf, sizeof(buf), "                      ");
+		mvaddstr(3, 1, buf);
+		mvaddstr(3, 30, buf);
+		mvaddstr(3, cols - 29, "^O)pen ^E)xit        ");
 	}
 
-	mvaddstr(5, 0, "Song");
-	drawsonged(0, 6, lines - 12);
+	mvaddstr(5, 1, "Song L1:\x1f\x1e R1:\x1f\x1e L2:\x1f\x1e R2:\x1f\x1e");
+	drawsonged(2, 6, lines - 12);
 
 	snprintf(buf, sizeof(buf), "Track %02x {}", currtrack);
-	mvaddstr(5, 29, buf);
-	drawtracked(29, 6, lines - 8);
+	mvaddstr(5, 31, buf);
+	drawtracked(31, 6, lines - 8);
 
 	snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
-	mvaddstr(5, 49, buf);
-	drawinstred(49, 6, lines - 12);
+	mvaddstr(5, 51, buf);
+	drawinstred(51, 6, lines - 12);
+	
+	snprintf(buf, sizeof(buf), "Octave: %d <>", octave);
+	mvaddstr(5, cols - 14, buf);
 
 	if (cmd[0])
 	{
-		snprintf(buf, sizeof(buf), "new %s? %s", cmd, cmdinput);
+		snprintf(buf, sizeof(buf), "new %s? %s                      ", cmd, cmdinput);
 	}
 	else
 	{
 		if (alert[0])
 			snprintf(buf, sizeof(buf), "%s", alert);	
 		else
-			snprintf(buf, sizeof(buf), "						");
+			memset(buf, 32, sizeof(buf));
 	}
 	mvaddstr(LINES-1, 1, buf);
 
 	switch(currtab) {
 		case 0:
-			move(6 + songy - songoffs, 0 + 4 + songcols[songx]);
+			move(6 + songy - songoffs, 0 + 6 + songcols[songx]);
 			break;
 		case 1:
-			move(6 + tracky - trackoffs, 29 + 4 + trackcols[trackx]);
+			move(6 + tracky - trackoffs, 29 + 6 + trackcols[trackx]);
 			break;
 		case 2:
-			move(6 + instry - instroffs, 49 + 4 + instrcols[instrx]);
+			move(6 + instry - instroffs, 49 + 6 + instrcols[instrx]);
 			break;
 	}
 

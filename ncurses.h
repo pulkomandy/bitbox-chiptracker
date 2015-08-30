@@ -16,7 +16,7 @@ enum attributes{
 	A_BOLD
 };
 
-static const int LINES = 39;
+static const int LINES = 30;
 
 /*
 // already defined in bitbox.h
@@ -86,32 +86,55 @@ static inline void attrset(int attr)
 	text_color = attr;
 };
 
-static const int normal_table[] = {
+
+//TODO:  it would be nice to just re-use the data from bitbox/lib/evt_queue.c 
+// so we don't have to hack it in here, too:
+#ifdef KEYB_FR
+static const int normal_table[83] = {
+	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,'q','b','c','d','e','f','g','h','i','j','k','l',',','n',
+	'o','p','a','r','s','t','u','v','z','x','y','w','&',0xe9,'\"','\'','(','-',
+	0xe8,'_',0xe7,0xe0,'\n',0x1B,'\b','\t',' ',')','=','^','$','\\','#','m',0xF9,'*',
+	';',':','!',
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP
+};
+static const int shift_table[83] = {
+	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,'Q','B','C','D','E','F','G','H','I','J','K','L','?','N',
+	'O','P','A','R','S','T','U','V','Z','X','Y','W','1','2','3','4','5','6',
+	'7','8','9','0','\n',0x1B,'\b','\t',' ',0xB0,'+',0xa8,0xa3,'\\','#','M','%',0xB5,
+	'.','/',0xA7,
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
+};
+static const int ctrl_table[83] = {
+	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR, 17, 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10, 11, 12,',', 14,
+	 15, 16, 1 , 18, 19, 20, 21, 22, 26, 24, 25, 23,'1','2','3','4','5','6',
+	'7','8','9','0','\n',0x1B,'\b','\t',' ','-','=','[',']','\\',KEY_ERR,';','\'','`',
+	 13,'.','/',
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
+}; 
+#else
+static const int normal_table[83] = {
 	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,'a','b','c','d','e','f','g','h','i','j','k','l','m','n',
 	'o','p','q','r','s','t','u','v','w','x','y','z','1','2','3','4','5','6',
-	'7','8','9','0','\n',0x1B,8,'\t',' ','-','=','[',']','\\','#',';','\'','`',
+	'7','8','9','0','\n',0x1B,'\b','\t',' ','-','=','[',']','\\','#',';','\'','`',
 	',','.','/',
-	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
-	[224]=KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR
+	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP
 };
-
-static const int shift_table[] = {
+static const int shift_table[83] = {
 	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,'A','B','C','D','E','F','G','H','I','J','K','L','M','N',
-	'O','P','Q','R','S','T','U','V','W','X','Y','Z','!','@','#','$','%','&',
-	'^','*','(',')','\n',0x1B,8,'\t',' ','_','+','{','}','|','#',':','\\','"',
-	'~','<','>','?',
+	'O','P','Q','R','S','T','U','V','W','X','Y','Z','!','@','#','$','%','^',
+	'&','*','(',')','\n',0x1B,'\b','\t',' ','_','+','{','}','|','#',':','"','~',
+	'<','>','?',
 	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
-	[224]=KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR
 };
-
-static const int ctrl_table[] = {
-	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,1,2,3,4,5,6,7,8,9,10,11,12,13,14,
-	15,16,17,18,19,20,21,22,23,24,25,26,'1','2','3','4','5','6',
-	'7','8','9','0','\n',0x1B,8,'\t',' ','-','=','[',']','\\',KEY_ERR,';','\'','`',
+static const int ctrl_table[83] = {
+	KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR, 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10, 11, 12, 13, 14,
+	 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,'1','2','3','4','5','6',
+	'7','8','9','0','\n',0x1B,'\b','\t',' ','-','=','[',']','\\',KEY_ERR,';','\'','`',
 	',','.','/',
 	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP,
-	[224]=KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR,KEY_ERR
 };
+#endif
+
 
 static inline int getch()
 {

@@ -18,7 +18,8 @@ u8 playsong;
 u8 playtrack;
 
 struct instrument instrument[NINST];
-struct track track[32];
+//struct track track[NTRACK];
+struct trackline tracking[NTRACKLINE];
 struct songline song[256];
 
 volatile struct oscillator osc[4];
@@ -39,12 +40,12 @@ void readsong(int pos, int ch, u8 *dest) {
 }
 
 void readtrack(int num, int pos, struct trackline *tl) {
-	tl->note = track[num].line[pos].note;
-	tl->instr = track[num].line[pos].instr;
-	tl->cmd[0] = track[num].line[pos].cmd[0];
-	tl->cmd[1] = track[num].line[pos].cmd[1];
-	tl->param[0] = track[num].line[pos].param[0];
-	tl->param[1] = track[num].line[pos].param[1];
+	tl->note = track(num, pos)->note;
+	tl->instr = track(num, pos)->instr;
+	tl->cmd[0] = track(num, pos)->cmd[0];
+	tl->cmd[1] = track(num, pos)->cmd[1];
+	tl->param[0] = track(num, pos)->param[0];
+	tl->param[1] = track(num, pos)->param[1];
 }
 
 void readinstr(int num, int pos, u8 *il) {
@@ -127,7 +128,7 @@ void iedplonk(int note, int instr) {
 
 void startplaytrack(int t) {
 	channel[0].tnum = t;
-	channel[1].tnum = 0;
+	channel[1].tnum = t;
 	channel[2].tnum = 0;
 	channel[3].tnum = 0;
 	trackpos = 0;
@@ -174,7 +175,6 @@ void playroutine() {			// called at 50 Hz
 					if(channel[ch].tnum) {
 						struct trackline tl;
 						u8 instr = 0;
-
 						readtrack(channel[ch].tnum, trackpos, &tl);
 						if(tl.note) {
 							channel[ch].tnote = tl.note + channel[ch].transp;
