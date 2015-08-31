@@ -2,10 +2,10 @@
 
 #include <stdint.h>
 
-#define NINST 64
-#define NINSTLINE 50  // number of lines to make an instrument
-#define NTRACK 64
-#define NTRACKLINE 16382
+#define NINST 40
+#define NINSTLINE 48  // number of lines to make an instrument
+//#define NTRACK 64
+#define NTRACKLINE 12288
 
 void message (const char *fmt, ...);
 
@@ -47,9 +47,9 @@ struct songline {
 void initchip();
 void playroutine();
 
-void readsong(int pos, int ch, u8 *dest);
-void readtrack(int num, int pos, struct trackline *tl);
-void readinstr(int num, int pos, u8 *il);
+void readsong(int pos, uint8_t ch, u8 *dest);
+void readtrack(uint8_t num, uint8_t pos, struct trackline *tl);
+void readinstr(uint8_t num, uint8_t pos, u8 *il);
 
 void silence();
 void iedplonk(int, int);
@@ -80,11 +80,16 @@ extern struct songline song[256];
 //extern struct track track[NTRACK];
 extern struct trackline tracking[NTRACKLINE];
 extern struct instrument instrument[NINST];
-inline struct trackline *track(int track_index, int track_pos)
+inline struct trackline *track(uint8_t track_index, uint8_t track_pos)
 {
     return &tracking[(track_index-1)*tracklen + track_pos];
 }
 int realign_tracks(int new_tracklen);
 
-extern char filename[32];
-extern char alert[64];
+extern char filename[13]; // FatFS short filename constraints:  8.3 + null char
+
+
+extern char alert[32];
+void setalert(const char *alerto);
+
+void redrawgui();

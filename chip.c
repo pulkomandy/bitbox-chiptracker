@@ -34,12 +34,12 @@ void silence() {
 	playtrack = 0;
 }
 
-void readsong(int pos, int ch, u8 *dest) {
+void readsong(int pos, uint8_t ch, u8 *dest) {
 	dest[0] = song[pos].track[ch];
 	dest[1] = song[pos].transp[ch];
 }
 
-void readtrack(int num, int pos, struct trackline *tl) {
+void readtrack(uint8_t num, uint8_t pos, struct trackline *tl) {
 	tl->note = track(num, pos)->note;
 	tl->instr = track(num, pos)->instr;
 	tl->cmd[0] = track(num, pos)->cmd[0];
@@ -48,7 +48,7 @@ void readtrack(int num, int pos, struct trackline *tl) {
 	tl->param[1] = track(num, pos)->param[1];
 }
 
-void readinstr(int num, int pos, u8 *il) {
+void readinstr(uint8_t num, uint8_t pos, u8 *il) {
 	if(pos >= instrument[num].length) {
 		il[0] = 0;
 		il[1] = 0;

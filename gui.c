@@ -5,13 +5,18 @@
 #include <math.h>
 
 // TODO:  
-// * make numtracks go up when adding a note to a track, not just when moving to a new one
-// * fix silent play-track bug when adding a new track, or also randomly
-// * remove "EXIT"  from gui
-// * efficiently clear out instrument column when changing instrument when next one has less length
-// * fix bug when hitting shift in instrument list (displays weird character)
+// * io bug??? invalid name format
+// FEATURES:
+// * ` on a track, if on a note, goes to edit that note's instrument
+// * Insert in instrument tab allows you to add another line
+// * Home/End - sends you to tracky songy = 0 type of thing, depending on tab
+// * PgUp/PgDn - sends you up/down the list by 16 or so lines
 // * shift+space -> play song from beginning
 // * ctrl+space -> loop song?
+// * shift+tab -> move backwards through tabs
+// ALGORITHMS
+// * make numtracks go up when adding a note to a track, not just when moving to a new one
+// * efficiently clear out instrument column when changing instrument when next one has less length
 
 
 #include "stuff.h"
@@ -42,11 +47,11 @@ int currtab = 0;
 int octave = 4;
 
 char cmd[16] = {0, 0}; // we do this to avoid undefined behavior in setcmd
-char cmdinput[32];
+char cmdinput[8];
 u8 cmdinputpos;
 u8 cmdinputnumeric;
 
-char alert[64];
+char alert[32];
 
 enum {
 	MODE_NONE = 0,
@@ -59,7 +64,7 @@ struct trackline tclip[256];
 
 void setalert(const char *alerto)
 {
-	snprintf(alert, sizeof(alert), "%s", alerto);
+	snprintf(alert, sizeof(alert), "%s                                ", alerto);
 }
 
 void setcmd(const char *cmdo)
@@ -87,7 +92,7 @@ void setcmd(const char *cmdo)
 	}
 	switch (cmd[0])
 	{
-	case 'n': // name of file
+	case 'b': // base filename
 	case 'f': // file to open
 		cmdinputnumeric = 0;
 		break;
@@ -105,17 +110,18 @@ void evalcmd()
 		int result;
 		switch (cmd[0])
 		{
-		case 'n': // name of file
-			snprintf(filename, sizeof(filename), "%s", cmdinput);
+		case 'b': // basename of file
+			snprintf(filename, sizeof(filename), "%s.chp", cmdinput);
 			break;
 		case 'f': // file to open
 			silence();
 			clear_song();
 			mode = MODE_NONE;
- 			erase();
+			currtab = 0;
 			songx = 0;
 			songy = 0;
 			loadfile(cmdinput);
+			redrawgui();
 			break;
 		case 't': // tracklength
 			if (1 == sscanf(cmdinput, "%d", &result))
@@ -128,7 +134,7 @@ void evalcmd()
 						if (currtrack*tracklen > NTRACKLINE)
 							currtrack = NTRACKLINE/tracklen;
 					}
-					erase();
+					redrawgui();
 				}
 				else
 					setalert("need tracklength > 0 and < 257");
@@ -200,6 +206,7 @@ void initgui() {
 
 	songlen = 1;
 
+	redrawgui();
 	//atexit(exitgui);
 }
 
@@ -298,7 +305,7 @@ void drawinstred(int x, int y, int height) {
 					snprintf(buf, sizeof(buf), "---");
 				}
 			} else {
-				snprintf(buf, sizeof(buf), "%02x", instrument[currinstr].line[i].param);
+				snprintf(buf, sizeof(buf), "%02x-", instrument[currinstr].line[i].param);
 			}
 			addstr(buf);
 			attrset(A_NORMAL);
@@ -306,28 +313,6 @@ void drawinstred(int x, int y, int height) {
 	}
 	move(y + i - instroffs, x + 0);
 	addstr("--- - ---");
-}
-
-void drawmodeinfo(int x, int y) {
-	if (mode & MODE_EDIT)
-	{
-		mvaddstr(y, x,	 "enter [lock]  ");
-		//attrset(A_REVERSE);
-		//mvaddstr(y, x, "EDIT");
-		//attrset(A_NORMAL);
-	}
-	else
-	{
-		mvaddstr(y, x,	 "enter [unlock]");
-	}
-	if (playsong||playtrack)
-	{
-		mvaddstr(y+1, x, "space [stop play]");
-	}
-	else
-	{
-		mvaddstr(y+1, x, "space [play]     ");
-	}
 }
 
 void handleinput() {
@@ -358,7 +343,7 @@ if ((c = getch()) != KEY_ERR)
 			}
 			else
 			{
-				if (cmdinputpos < 31)
+				if (cmdinputpos < 7)
 				{
 					cmdinput[cmdinputpos] = c;
 					cmdinput[++cmdinputpos] = 0;
@@ -369,9 +354,24 @@ if ((c = getch()) != KEY_ERR)
 		}
 		else switch (c)
 		{
-		case 8:
+		case 8: // backspace
 			if (cmdinputpos > 0)
-				cmdinput[--cmdinputpos] = 0;
+			{
+				if (cmdinputnumeric)
+				{
+					if (cmdinputpos == 2 && cmdinput[cmdinputpos])
+						cmdinput[cmdinputpos] = 0;
+					else
+						cmdinput[--cmdinputpos] = 0;
+				}
+				else
+				{
+					if (cmdinputpos == 7 && cmdinput[cmdinputpos])
+						cmdinput[cmdinputpos] = 0;
+					else
+						cmdinput[--cmdinputpos] = 0;
+				}
+			}
 			break;
 		case '\n':
 			evalcmd();
@@ -380,7 +380,7 @@ if ((c = getch()) != KEY_ERR)
 			setcmd("tracklength");
 			break;
 		case 'F' - '@':
-			setcmd("name of file");
+			setcmd("base filename");
 			break;
 		case 'O' - '@':
 			setcmd("file to open");
@@ -388,12 +388,13 @@ if ((c = getch()) != KEY_ERR)
 		case 'S' - '@':
 			setcmd("songspeed");
 			break;
-		case 'E' - '@':
-			cmd[0] = 0;
-			break;
 		}
 	}
-	else switch(c) {
+	else 
+	#ifdef EMULATOR
+	//if (c)	// for some reason shift comes out as c=0, perhaps a bug in bitbox lib
+	#endif
+	switch(c) {
 		case ' ':
 			if (playsong || playtrack)
 			{
@@ -427,21 +428,19 @@ if ((c = getch()) != KEY_ERR)
 		case 'N':
 		case 9:
 			currtab++;
-			currtab %= 3;
+			if (mode & MODE_EDIT)
+				currtab %= 3;
+			else
+				currtab %= 2; // this glosses over a bug
 			break;
 		case 'P' - '@':
 		case 'P':
 			currtab--;
-			currtab %= 3;
+			if (mode & MODE_EDIT)
+				currtab %= 3;
+			else
+				currtab %= 2;
 			break;
-#if 0
-		case 'E' - '@':
-			erase();
-			refresh();
-			//endwin();
-			exit(0);
-			break;
-#endif
 		case 'W' - '@':
 			if (mode & MODE_EDIT)
 				savefile(filename);
@@ -451,7 +450,7 @@ if ((c = getch()) != KEY_ERR)
 				setcmd("tracklength");
 			break;
 		case 'F' - '@':
-			setcmd("name of file");
+			setcmd("base filename");
 			break;
 		case 'O' - '@':
 			setcmd("file to open");
@@ -477,21 +476,21 @@ if ((c = getch()) != KEY_ERR)
 			if(currinstr < NINST-1) {
 				currinstr++;
 				if (instrument[currinstr].length < instrument[currinstr-1].length)
-					erase();
+					redrawgui();
 			}
 			break;
 		case '{':
 			if(currtrack > 1) currtrack--;
 			break;
 		case '}':
-			if((currtrack+1)*tracklen <= NTRACKLINE)  {
+			if((currtrack+1)*tracklen <= NTRACKLINE && currtrack < 255)  {
 				currtrack++;
 				// update the number of tracks -- TODO: probably should wait to put
 				// something in them, but nevertheless keep track of it.
 				if (numtracks < currtrack) 
 					numtracks = currtrack;
 			} else {
-				setalert("can't fit anymore tracks into memory.");
+				setalert("can't fit more tracks in memory");
 			}
 			break;
 		case '`':
@@ -518,7 +517,7 @@ if ((c = getch()) != KEY_ERR)
 					if(trackx) trackx--;
 					break;
 				case 2:
-					if(instrx) instrx--;
+					if((mode&MODE_EDIT) && instrx) instrx--;
 					break;
 			}
 			break;
@@ -531,7 +530,7 @@ if ((c = getch()) != KEY_ERR)
 					if(trackx < 8) trackx++;
 					break;
 				case 2:
-					if(instrx < 2) instrx++;
+					if((mode&MODE_EDIT) && instrx < 2) instrx++;
 					break;
 			}
 			break;
@@ -589,9 +588,38 @@ if ((c = getch()) != KEY_ERR)
 				}
 			}
 			break;
+		case 127: // delete
+			if(mode & MODE_EDIT) switch (currtab) {
+				case 0:
+					song[songy].track[songx/4] = 0;
+					song[songy].transp[songx/4] = 0;
+					break;
+				case 1:
+					memset(track(currtrack,tracky), 0, sizeof(struct trackline));
+					break;
+				case 2:
+					//TODO: delete instrument line instry and move everything up one.
+					if (instrument[currinstr].length > 1)
+					{
+						for (int iy=instry; iy<instrument[currinstr].length-1; iy++)
+							memcpy(&instrument[currinstr].line[iy], &instrument[currinstr].line[iy+1], sizeof(struct instrline));
+						memset(&instrument[currinstr].line[instrument[currinstr].length-1], 0, sizeof(struct instrline));
+						instrument[currinstr].length --;
+						redrawgui();
+					}
+					else
+					{
+						instrument[1].line[0].cmd = '0';
+						instrument[1].line[0].param = 0;
+					}
+					break;
+			}
+			break;
 		default:
 			if(mode & MODE_EDIT) {
 				x = hexdigit(c);
+				// helpful for debugging:
+				// snprintf(alert, sizeof(alert), "%d %x %c", (int) c, x, c);
 				if(x >= 0) {
 					if(currtab == 2
 					&& instrx > 0
@@ -722,47 +750,58 @@ if ((c = getch()) != KEY_ERR)
 }
 
 void drawgui() {
-	char buf[80];
-	int lines = LINES, cols = 79;
+	char buf[32];
 	int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
 	int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
 	int instrcols[] = {0, 2, 3};
 
 	//erase();
-	mvaddstr(0, 0, " music chip tracker");
-	drawmodeinfo(cols - 28, 0);
+	if (mode & MODE_EDIT)
+	{
+		mvaddstr(0, COLUMNS-22, "lock]  ");
+	}
+	else
+	{
+		mvaddstr(0, COLUMNS-22, "unlock]");
+	}
+	if (playsong||playtrack)
+	{
+		mvaddstr(1, COLUMNS-22, "stop play]");
+	}
+	else
+	{
+		mvaddstr(1, COLUMNS-22, "play]     ");
+	}
 
-	snprintf(buf, sizeof(buf), "^F)ilename:  %s", filename);
-	mvaddstr(2, 1, buf);
+	snprintf(buf, sizeof(buf), "%s                    ", filename);
+	mvaddstr(2, 14, buf);
 	if (mode & MODE_EDIT)
 	{
 		snprintf(buf, sizeof(buf), "^S)ongspeed: %d  ", songspeed);
 		mvaddstr(3, 1, buf);
 		snprintf(buf, sizeof(buf), "^T)racklength: %d  ", tracklen);
 		mvaddstr(3, 30, buf);
-		mvaddstr(3, cols - 29, "^O)pen ^E)xit ^W)rite");
+		mvaddstr(3, COLUMNS - 23, "^W)rite");
 	}
 	else
 	{
-		snprintf(buf, sizeof(buf), "                      ");
+		snprintf(buf, sizeof(buf), "                    ");
 		mvaddstr(3, 1, buf);
 		mvaddstr(3, 30, buf);
-		mvaddstr(3, cols - 29, "^O)pen ^E)xit        ");
+		mvaddstr(3, COLUMNS - 23, "       ");
 	}
+	drawsonged(2, 6, LINES - 12);
 
-	mvaddstr(5, 1, "Song L1:\x1f\x1e R1:\x1f\x1e L2:\x1f\x1e R2:\x1f\x1e");
-	drawsonged(2, 6, lines - 12);
+	snprintf(buf, sizeof(buf), "%02x", currtrack);
+	mvaddstr(5, 37, buf);
+	drawtracked(31, 6, LINES - 8);
 
-	snprintf(buf, sizeof(buf), "Track %02x {}", currtrack);
-	mvaddstr(5, 31, buf);
-	drawtracked(31, 6, lines - 8);
-
-	snprintf(buf, sizeof(buf), "Instr. %02x []", currinstr);
-	mvaddstr(5, 51, buf);
-	drawinstred(51, 6, lines - 12);
+	snprintf(buf, sizeof(buf), "%02x", currinstr);
+	mvaddstr(5, 58, buf);
+	drawinstred(51, 6, LINES - 12);
 	
-	snprintf(buf, sizeof(buf), "Octave: %d <>", octave);
-	mvaddstr(5, cols - 14, buf);
+	snprintf(buf, sizeof(buf), "%02d", octave);
+	mvaddstr(5, COLUMNS - 7, buf);
 
 	if (cmd[0])
 	{
@@ -790,6 +829,25 @@ void drawgui() {
 	}
 
 	refresh();
+}
+
+void redrawgui() {
+	erase();
+	mvaddstr(0, 0, " music chip tracker");
+
+	mvaddstr(0, COLUMNS-29, "enter [");
+	mvaddstr(1, COLUMNS-29, "space [");
+	
+	mvaddstr(2, 1, "^F)ilename:");
+	
+	mvaddstr(3, COLUMNS - 30, "^O)pen");
+	
+	mvaddstr(5, 1, "Song L1:\x1f\x1e R1:\x1f\x1e L2:\x1f\x1e R2:\x1f\x1e");
+
+	mvaddstr(5, 31, "Track    {}");
+	mvaddstr(5, 51, "Instr.    []");
+	mvaddstr(5, COLUMNS - 15, "Octave:    <>");
+	drawgui();
 }
 
 void game_frame() {

@@ -16,7 +16,8 @@ enum attributes{
 	A_BOLD
 };
 
-static const int LINES = 30;
+#define LINES 30
+#define COLUMNS 80
 
 /*
 // already defined in bitbox.h
@@ -95,6 +96,7 @@ static const int normal_table[83] = {
 	'o','p','a','r','s','t','u','v','z','x','y','w','&',0xe9,'\"','\'','(','-',
 	0xe8,'_',0xe7,0xe0,'\n',0x1B,'\b','\t',' ',')','=','^','$','\\','#','m',0xF9,'*',
 	';',':','!',
+	[76]=127, // delete
 	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP
 };
 static const int shift_table[83] = {
@@ -117,6 +119,7 @@ static const int normal_table[83] = {
 	'o','p','q','r','s','t','u','v','w','x','y','z','1','2','3','4','5','6',
 	'7','8','9','0','\n',0x1B,'\b','\t',' ','-','=','[',']','\\','#',';','\'','`',
 	',','.','/',
+	[76]=127, // delete
 	[79]=KEY_RIGHT,KEY_LEFT,KEY_DOWN,KEY_UP
 };
 static const int shift_table[83] = {
@@ -141,7 +144,7 @@ static inline int getch()
 	struct event e = event_get();
 	if (e.type != evt_keyboard_press)
 		return KEY_ERR;
-
+	message("e.kbd.key = %d -> %d\n", (int)e.kbd.key, normal_table[e.kbd.key]);
 	// Unfortunately kbd_map is not complete enough, let's add some things...
 	if (e.kbd.mod & (LCtrl|RCtrl))
 		return ctrl_table[e.kbd.key];

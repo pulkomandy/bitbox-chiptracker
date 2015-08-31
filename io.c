@@ -3,15 +3,18 @@
 #include <string.h> // memset
 #include "stuff.h"
 
-char filename[32];
+
+char filename[13];
 u16 numtracks;
 
 FATFS fat_fs;
+FIL fat_file;
+FRESULT fat_result;
 uint8_t fat_mount;
 
 void initio()
 {
-	FRESULT fat_result = f_mount(&fat_fs, "", 1);
+	fat_result = f_mount(&fat_fs, "", 1);
 	if (fat_result == FR_OK)
 		fat_mount = 1;
 	else
@@ -20,10 +23,50 @@ void initio()
 
 void savefile(char *fname) {
 if (fat_mount) {
-	FIL fat_file;
-	FRESULT fat_result = f_open(&fat_file,fname, FA_WRITE | FA_OPEN_ALWAYS);
+	fat_result = f_open(&fat_file, fname, FA_WRITE | FA_OPEN_ALWAYS);
 	if (fat_result != FR_OK) {
-		snprintf(alert, sizeof(alert), "error saving!");
+		switch (fat_result) {
+		case (FR_DISK_ERR):
+			setalert("low level error!"); break;
+		case (FR_INT_ERR):
+			setalert("assertion error"); break;
+		case (FR_NOT_READY):
+			setalert("physical drive not ready"); break;
+		case (FR_NO_FILE):
+			setalert("could not find file"); break;
+		case (FR_NO_PATH):
+			setalert("could not find path"); break;
+		case (FR_INVALID_NAME):
+			setalert("invalid name format"); break;
+		case (FR_DENIED):
+			setalert("denied access (full?)"); break;
+		case (FR_EXIST):
+			setalert("prohibited access"); break;
+		case (FR_INVALID_OBJECT):
+			setalert("invalid file/dir obj"); break;
+		case (FR_WRITE_PROTECTED):
+			setalert("drive is write protected"); break;
+		case (FR_INVALID_DRIVE):
+			setalert("drive number is invalid"); break;
+		case (FR_NOT_ENABLED):
+			setalert("no work area in volume"); break;
+		case (FR_NO_FILESYSTEM):
+			setalert("not valid FAT volume"); break;
+		case (FR_MKFS_ABORTED):
+			setalert("f_mkfs abort?"); break;
+		case (FR_TIMEOUT):
+			setalert("timeout"); break;
+		case (FR_LOCKED):
+			setalert("locked due to sharing"); break;
+		case (FR_NOT_ENOUGH_CORE):
+			setalert("LFN buffer no-allocate"); break;
+		case (FR_TOO_MANY_OPEN_FILES):
+			setalert("too many open files"); break;
+		case (FR_INVALID_PARAMETER):	
+			setalert("invalid parameter"); break;
+		default:
+			setalert("weird, some other error!");
+		}
 		return;
 	}
 
@@ -77,21 +120,63 @@ if (fat_mount) {
 	}
 
 	f_close(&fat_file);
+	setalert("file saved!");
 }
 else
-	snprintf(alert, sizeof(alert), "error: no SD card mounted!");
+	setalert("error: no SD card mounted!");
 }
 
 void loadfile(char *fname) {
 if (fat_mount) {
 	FIL fat_file;
-	FRESULT fat_result = f_open(&fat_file, fname, FA_READ);
+	fat_result = f_open(&fat_file, fname, FA_READ);
 	snprintf(filename, sizeof(filename), "%s", fname);
 	if(fat_result != FR_OK) {
-		snprintf(alert, sizeof(alert), "no succeed in opening file.");
+		switch (fat_result) {
+		case (FR_DISK_ERR):
+			setalert("low level error!"); break;
+		case (FR_INT_ERR):
+			setalert("assertion error"); break;
+		case (FR_NOT_READY):
+			setalert("physical drive not ready"); break;
+		case (FR_NO_FILE):
+			setalert("could not find file"); break;
+		case (FR_NO_PATH):
+			setalert("could not find path"); break;
+		case (FR_INVALID_NAME):
+			setalert("invalid name format"); break;
+		case (FR_DENIED):
+			setalert("denied access (full?)"); break;
+		case (FR_EXIST):
+			setalert("prohibited access"); break;
+		case (FR_INVALID_OBJECT):
+			setalert("invalid file/dir obj"); break;
+		case (FR_WRITE_PROTECTED):
+			setalert("drive is write protected"); break;
+		case (FR_INVALID_DRIVE):
+			setalert("drive number is invalid"); break;
+		case (FR_NOT_ENABLED):
+			setalert("no work area in volume"); break;
+		case (FR_NO_FILESYSTEM):
+			setalert("not valid FAT volume"); break;
+		case (FR_MKFS_ABORTED):
+			setalert("f_mkfs abort?"); break;
+		case (FR_TIMEOUT):
+			setalert("timeout"); break;
+		case (FR_LOCKED):
+			setalert("locked due to sharing"); break;
+		case (FR_NOT_ENOUGH_CORE):
+			setalert("LFN buffer no-allocate"); break;
+		case (FR_TOO_MANY_OPEN_FILES):
+			setalert("too many open files"); break;
+		case (FR_INVALID_PARAMETER):	
+			setalert("invalid parameter"); break;
+		default:
+			setalert("weird, some other error!");
+		}
 		return;
 	}
-	char buf[128];
+	char buf[48];
 	int cmd[3];
 	int i1, i2, trk[4], transp[4], param[3], note, instr;
 	int i;
@@ -149,9 +234,10 @@ if (fat_mount) {
 	}
 
 	f_close(&fat_file);
+	setalert("file loaded!");
 }
 else
-	snprintf(alert, sizeof(alert), "error: no SD card mounted!");
+	setalert("error: no SD card mounted!");
 }
 
 void clear_song()
