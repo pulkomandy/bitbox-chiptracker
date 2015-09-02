@@ -7,7 +7,7 @@ void game_init()
 	initio();
 	initchip();
 	initgui();
-	loadfile("bomberin.chp");
+//	loadfile("bomberin.chp");
 }
 
 #ifndef EMULATOR

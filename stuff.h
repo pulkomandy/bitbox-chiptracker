@@ -5,7 +5,10 @@
 #define NINST 40
 #define NINSTLINE 48  // number of lines to make an instrument
 //#define NTRACK 64
-#define NTRACKLINE 12288
+//#define NTRACKLINE 12288
+#define NTRACKLINE 8192
+// note that  8192 = 32*256 is the total number of tracklines you'd expect 
+// with the old constraints (32 notes/track, 256 tracks total)
 
 void message (const char *fmt, ...);
 
@@ -93,3 +96,4 @@ extern char alert[32];
 void setalert(const char *alerto);
 
 void redrawgui();
+int rsscanf(const char* str, const char* format, ...);

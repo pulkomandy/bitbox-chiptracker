@@ -1,4 +1,5 @@
 #include "fatfs/ff.h"
+#include <stdarg.h> // va_list
 #include <stdio.h>
 #include <string.h> // memset
 #include "stuff.h"
@@ -176,16 +177,28 @@ if (fat_mount) {
 		}
 		return;
 	}
-	char buf[48];
-	int cmd[3];
-	int i1, i2, trk[4], transp[4], param[3], note, instr;
-	int i;
 
 	tracklen = 32; // default
 	numtracks = 0;
 	songlen = 1;
-	while(f_gets(buf, sizeof(buf), &fat_file)) {
-		if(9 == sscanf(buf, "songline %x %x %x %x %x %x %x %x %x",
+	char buf[48];
+
+/*  // Even something as simple as this is not working on the bitbox
+	UINT bytes_get;
+	f_read(&fat_file, buf, sizeof(buf), &bytes_get);
+    message("buf = %d\n", (int) sizeof(buf));
+	if (bytes_get)
+	{
+		snprintf(alert, sizeof(alert), buf);
+		//f_read(&fat_file, buf, sizeof(buf), &bytes_get);
+	}
+*/
+
+	int cmd[3];
+	int i1, i2, trk[4], transp[4], param[3], note, instr;
+	int i;
+	while (f_gets(buf, sizeof(buf), &fat_file)) {
+		if(9 == rsscanf(buf, "songline %x %x %x %x %x %x %x %x %x",
 			&i1,
 			&trk[0],
 			&transp[0],
@@ -201,7 +214,7 @@ if (fat_mount) {
 				song[i1].transp[i] = transp[i];
 			}
 			if(songlen <= i1) songlen = i1 + 1;
-		} else if(8 == sscanf(buf, "trackline %x %x %x %x %x %x %x %x",
+		} else if(8 == rsscanf(buf, "trackline %x %x %x %x %x %x %x %x",
 			&i1,
 			&i2,
 			&note,
@@ -219,7 +232,7 @@ if (fat_mount) {
 				track(i1, i2)->cmd[i] = cmd[i];
 				track(i1, i2)->param[i] = param[i];
 			}
-		} else if(4 == sscanf(buf, "instrumentline %x %x %x %x",
+		} else if(4 == rsscanf(buf, "instrumentline %x %x %x %x",
 			&i1,
 			&i2,
 			&cmd[0],
@@ -228,13 +241,13 @@ if (fat_mount) {
 			instrument[i1].line[i2].cmd = cmd[0];
 			instrument[i1].line[i2].param = param[0];
 			if(instrument[i1].length <= i2) instrument[i1].length = i2 + 1;
-		} else if(1 == sscanf(buf, "tracklength %x", &i)) {
+		} else if(1 == rsscanf(buf, "tracklength %x", &i)) {
 			tracklen = i;
 		}
 	}
 
 	f_close(&fat_file);
-	setalert("file loaded!");
+	//setalert("file loaded!");
 }
 else
 	setalert("error: no SD card mounted!");
@@ -242,9 +255,14 @@ else
 
 void clear_song()
 {
-	memset(instrument, 0, sizeof(instrument));
+	for(int i = 1; i < NINST; i++) {
+		instrument[i].length = 1;
+		instrument[i].line[0].cmd = '0';
+		instrument[i].line[0].param = 0;
+	}
 	memset(tracking, 0, sizeof(tracking));
 	memset(song, 0, sizeof(song));
+	songlen = 1;
 }
 
 int realign_tracks(int new_tracklen)
@@ -506,3 +524,138 @@ int alignbyte() {
 	return exportseek;
 }
 */
+
+// Reduced version of scanf (%d, %x, %c, %n are supported)
+// thanks to https://groups.google.com/d/msg/comp.arch.fpga/ImYAZ6X_Wm4/WE-gYX-mNSgJ
+// %d dec integer (E.g.: 12)
+// %x hex integer (E.g.: 0xa0)
+// %b bin integer (E.g.: b1010100010)
+// %n hex, de or bin integer (e.g: 12, 0xa0, b1010100010)
+// %c any character
+//
+int rsscanf(const char* str, const char* format, ...)
+{
+	va_list ap;
+	int value, tmp;
+	int count;
+	int pos;
+	char neg, fmt_code;
+	//const char* pf;
+
+	va_start(ap, format);
+
+	for (/*pf = format, */count = 0; *format != 0 && *str != 0; format++, str++)
+	{
+		while (*format == ' ' && *format != 0)
+			format++;
+		if (*format == 0)
+			break;
+
+		while (*str == ' ' && *str != 0)
+			str++;
+		if (*str == 0)
+			break;
+
+		if (*format == '%')
+		{
+			format++;
+			if (*format == 'n')
+			{
+				if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+				{
+					fmt_code = 'x';
+					str += 2;
+				}
+				else
+				if (str[0] == 'b')
+				{
+					fmt_code = 'b';
+					str++;
+				}
+				else
+					fmt_code = 'd';
+			}
+			else
+				fmt_code = *format;
+
+			switch (fmt_code)
+			{
+			case 'x':
+			case 'X':
+				for (value = 0, pos = 0; *str != 0; str++, pos++)
+				{
+					if ('0' <= *str && *str <= '9')
+						tmp = *str - '0';
+					else
+					if ('a' <= *str && *str <= 'f')
+						tmp = *str - 'a' + 10;
+					else
+					if ('A' <= *str && *str <= 'F')
+						tmp = *str - 'A' + 10;
+					else
+						break;
+
+					value *= 16;
+					value += tmp;
+				}
+				if (pos == 0)
+						return count;
+				*(va_arg(ap, int*)) = value;
+				count++;
+				break;
+
+			case 'b':
+				for (value = 0, pos = 0; *str != 0; str++, pos++)
+				{
+					if (*str != '0' && *str != '1')
+						break;
+					value *= 2;
+					value += *str - '0';
+				}
+				if (pos == 0)
+					return count;
+				*(va_arg(ap, int*)) = value;
+				count++;
+				break;
+
+			case 'd':
+				if (*str == '-')
+				{
+					neg = 1;
+					str++;
+				}
+				else
+					neg = 0;
+				for (value = 0, pos = 0; *str != 0; str++, pos++)
+				{
+					if ('0' <= *str && *str <= '9')
+						value = value*10 + (int)(*str - '0');
+					else
+						break;
+				}
+				if (pos == 0)
+					return count;
+				*(va_arg(ap, int*)) = neg ? -value : value;
+				count++;
+				break;
+
+			case 'c':
+				*(va_arg(ap, char*)) = *str;
+				count++;
+				break;
+
+			default:
+				return count;
+			}
+		}
+		else
+		{
+			if (*format != *str)
+				break;
+		}
+	}
+
+	va_end(ap);
+
+	return count;
+}

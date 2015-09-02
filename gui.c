@@ -5,10 +5,10 @@
 #include <math.h>
 
 // TODO:  
-// * io bug??? invalid name format
+// * io bug??? when opening a file, it hangs somehow on the bitbox (emulator fine).
 // FEATURES:
+// * HELP bar (under octaves):  includes I, D, A, C, V in commands, chart of valid cmds
 // * ` on a track, if on a note, goes to edit that note's instrument
-// * Insert in instrument tab allows you to add another line
 // * Home/End - sends you to tracky songy = 0 type of thing, depending on tab
 // * PgUp/PgDn - sends you up/down the list by 16 or so lines
 // * shift+space -> play song from beginning
@@ -120,7 +120,9 @@ void evalcmd()
 			currtab = 0;
 			songx = 0;
 			songy = 0;
-			loadfile(cmdinput);
+			char newfile[13];
+			snprintf(newfile, sizeof(newfile), "%s.chp", cmdinput);
+			loadfile(newfile);
 			redrawgui();
 			break;
 		case 't': // tracklength
@@ -191,20 +193,12 @@ int freqkey(int c) {
 //}
 
 void initgui() {
-	int i;
-
 	initscr();
 	//noecho();
 	//keypad(stdscr, TRUE);
 	//raw();
 
-	for(i = 1; i < NINST; i++) {
-		instrument[i].length = 1;
-		instrument[i].line[0].cmd = '0';
-		instrument[i].line[0].param = 0;
-	}
-
-	songlen = 1;
+	clear_song();
 
 	redrawgui();
 	//atexit(exitgui);
@@ -321,8 +315,8 @@ if ((c = getch()) != KEY_ERR)
 {
 	if (cmd[0])
 	{
-		//	 period   numbers			  uppercase letters   lowercase letters		_ or -
-		if ( c==46 || (c>=48 && c<=57) || (c>=65 && c<=90) || (c>=97 && c<=122) || (c == 95 || c == 45) )
+		//	 numbers			  uppercase letters   lowercase letters		_ or -
+		if ( (c>=48 && c<=57) || (c>=65 && c<=90) || (c>=97 && c<=122) || (c == 95 || c == 45) )
 		{
 			if (cmdinputnumeric)
 			{
@@ -391,9 +385,6 @@ if ((c = getch()) != KEY_ERR)
 		}
 	}
 	else 
-	#ifdef EMULATOR
-	//if (c)	// for some reason shift comes out as c=0, perhaps a bug in bitbox lib
-	#endif
 	switch(c) {
 		case ' ':
 			if (playsong || playtrack)
@@ -588,6 +579,7 @@ if ((c = getch()) != KEY_ERR)
 				}
 			}
 			break;
+		case 8: // backspace
 		case 127: // delete
 			if(mode & MODE_EDIT) switch (currtab) {
 				case 0:
@@ -598,21 +590,8 @@ if ((c = getch()) != KEY_ERR)
 					memset(track(currtrack,tracky), 0, sizeof(struct trackline));
 					break;
 				case 2:
-					//TODO: delete instrument line instry and move everything up one.
-					if (instrument[currinstr].length > 1)
-					{
-						for (int iy=instry; iy<instrument[currinstr].length-1; iy++)
-							memcpy(&instrument[currinstr].line[iy], &instrument[currinstr].line[iy+1], sizeof(struct instrline));
-						memset(&instrument[currinstr].line[instrument[currinstr].length-1], 0, sizeof(struct instrline));
-						instrument[currinstr].length --;
-						redrawgui();
-					}
-					else
-					{
-						instrument[1].line[0].cmd = '0';
-						instrument[1].line[0].param = 0;
-					}
-					break;
+					instrument[currinstr].line[instry].cmd = '0';
+					instrument[currinstr].line[instry].param = 0;
 			}
 			break;
 		default:
@@ -727,12 +706,14 @@ if ((c = getch()) != KEY_ERR)
 							memmove(&in->line[instry + 0], &in->line[instry + 1], sizeof(struct instrline) * (in->length - instry - 1));
 							in->length--;
 							if(instry >= in->length) instry = in->length - 1;
+							redrawgui();
 						}
 					} else if(currtab == 0) {
 						if(songlen > 1) {
 							memmove(&song[songy + 0], &song[songy + 1], sizeof(struct songline) * (songlen - songy - 1));
 							songlen--;
 							if(songy >= songlen) songy = songlen - 1;
+							redrawgui();
 						}
 					}
 				}
@@ -810,9 +791,9 @@ void drawgui() {
 	else
 	{
 		if (alert[0])
-			snprintf(buf, sizeof(buf), "%s", alert);	
+			snprintf(buf, sizeof(buf), "%s                                ", alert);	
 		else
-			memset(buf, 32, sizeof(buf));
+			memset(buf, 32, sizeof(buf)-1);
 	}
 	mvaddstr(LINES-1, 1, buf);
 

@@ -142,9 +142,9 @@ static const int ctrl_table[83] = {
 static inline int getch()
 {
 	struct event e = event_get();
-	if (e.type != evt_keyboard_press)
+	if (e.type != evt_keyboard_press || e.kbd.key >= 83 )
 		return KEY_ERR;
-	message("e.kbd.key = %d -> %d\n", (int)e.kbd.key, normal_table[e.kbd.key]);
+	//message("e.kbd.key = %d -> %d\n", (int)e.kbd.key, normal_table[e.kbd.key]);
 	// Unfortunately kbd_map is not complete enough, let's add some things...
 	if (e.kbd.mod & (LCtrl|RCtrl))
 		return ctrl_table[e.kbd.key];

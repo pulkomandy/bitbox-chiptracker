@@ -194,57 +194,11 @@ TCHAR* f_gets (
 	BYTE s[2];
 	UINT rc;
 
-
+	// chopped down a bit (ignoring LFN stuff)
 	while (n < len - 1) {	/* Read characters until buffer gets filled */
-#if _USE_LFN && _LFN_UNICODE
-#if _STRF_ENCODE == 3		/* Read a character in UTF-8 */
 		f_read(fp, s, 1, &rc);
 		if (rc != 1) break;
 		c = s[0];
-		if (c >= 0x80) {
-			if (c < 0xC0) continue;	/* Skip stray trailer */
-			if (c < 0xE0) {			/* Two-byte sequence */
-				f_read(fp, s, 1, &rc);
-				if (rc != 1) break;
-				c = (c & 0x1F) << 6 | (s[0] & 0x3F);
-				if (c < 0x80) c = '?';
-			} else {
-				if (c < 0xF0) {		/* Three-byte sequence */
-					f_read(fp, s, 2, &rc);
-					if (rc != 2) break;
-					c = c << 12 | (s[0] & 0x3F) << 6 | (s[1] & 0x3F);
-					if (c < 0x800) c = '?';
-				} else {			/* Reject four-byte sequence */
-					c = '?';
-				}
-			}
-		}
-#elif _STRF_ENCODE == 2		/* Read a character in UTF-16BE */
-		f_read(fp, s, 2, &rc);
-		if (rc != 2) break;
-		c = s[1] + (s[0] << 8);
-#elif _STRF_ENCODE == 1		/* Read a character in UTF-16LE */
-		f_read(fp, s, 2, &rc);
-		if (rc != 2) break;
-		c = s[0] + (s[1] << 8);
-#else						/* Read a character in ANSI/OEM */
-		f_read(fp, s, 1, &rc);
-		if (rc != 1) break;
-		c = s[0];
-		if (IsDBCS1(c)) {
-			f_read(fp, s, 1, &rc);
-			if (rc != 1) break;
-			c = (c << 8) + s[0];
-		}
-		c = ff_convert(c, 1);	/* OEM -> Unicode */
-		if (!c) c = '?';
-#endif
-#else						/* Read a character without conversion */
-		f_read(fp, s, 1, &rc);
-		if (rc != 1) break;
-		c = s[0];
-#endif
-		if (_USE_STRFUNC == 2 && c == '\r') continue;	/* Strip '\r' */
 		*p++ = c;
 		n++;
 		if (c == '\n') break;		/* Break on EOL */
