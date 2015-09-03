@@ -39,12 +39,12 @@ char *validcmds = "0dfijlmtvw~+="; // TODO: need bitcrush
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
 
 int songx, songy, songoffs;
-u16 songlen = 1;
-int trackx, tracky, trackoffs;
-int instrx, instry, instroffs;
-int currtrack = 1, currinstr = 1;
-int currtab = 0;
-int octave = 4;
+u16 songlen=1;
+int trackx=0, tracky=0, trackoffs=0;
+int instrx=0, instry=0, instroffs=0;
+int currtrack=1, currinstr=1;
+int currtab=0;
+int octave=4;
 
 char cmd[16] = {0, 0}; // we do this to avoid undefined behavior in setcmd
 char cmdinput[8];
@@ -61,6 +61,20 @@ int mode = MODE_NONE;
 
 struct instrument iclip;
 struct trackline tclip[256];
+
+void resetgui()
+{
+	mode = MODE_NONE;
+	currtab = 0;
+	songx = 0;
+	songy = 0;
+	currtrack = 1;
+	tracky = 0;
+	trackx = 0;
+	currinstr = 1;
+	instry = 0;
+	instrx = 0;
+}
 
 void setalert(const char *alerto)
 {
@@ -115,14 +129,10 @@ void evalcmd()
 			break;
 		case 'f': // file to open
 			silence();
-			clear_song();
-			mode = MODE_NONE;
-			currtab = 0;
-			songx = 0;
-			songy = 0;
 			char newfile[13];
 			snprintf(newfile, sizeof(newfile), "%s.chp", cmdinput);
 			loadfile(newfile);
+			resetgui();
 			redrawgui();
 			break;
 		case 't': // tracklength
@@ -197,9 +207,6 @@ void initgui() {
 	//noecho();
 	//keypad(stdscr, TRUE);
 	//raw();
-
-	clear_song();
-
 	redrawgui();
 	//atexit(exitgui);
 }
@@ -278,6 +285,13 @@ void drawtracked(int x, int y, int height) {
 void drawinstred(int x, int y, int height) {
 	int i;
 	char buf[8];
+
+	// TODO:
+	// what is modifying instry/instroffs to be -1?
+	// this should not be required!
+	if(instroffs <0) instroffs=0;
+	if(instry <0) instry=0;
+	// but for some reason somehow these guys get turned to -1 somewhere
 
 	if(instry >= instrument[currinstr].length) instry = instrument[currinstr].length - 1;
 
@@ -460,7 +474,7 @@ if ((c = getch()) != KEY_ERR)
 			if(currinstr > 1) {
 				currinstr--;
 				if (instrument[currinstr].length < instrument[currinstr+1].length)
-					erase();
+					redrawgui();
 			}
 			break;
 		case ']':
@@ -793,7 +807,10 @@ void drawgui() {
 		if (alert[0])
 			snprintf(buf, sizeof(buf), "%s                                ", alert);	
 		else
+		{
 			memset(buf, 32, sizeof(buf)-1);
+			buf[31] = 0;
+		}
 	}
 	mvaddstr(LINES-1, 1, buf);
 

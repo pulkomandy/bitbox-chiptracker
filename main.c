@@ -7,6 +7,7 @@ void game_init()
 	initio();
 	initchip();
 	initgui();
+	clear_song();
 //	loadfile("bomberin.chp");
 }
 

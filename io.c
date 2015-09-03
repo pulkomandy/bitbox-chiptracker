@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h> // memset
 #include "stuff.h"
+#include <bitbox.h>
 
 
 char filename[13];
@@ -129,6 +130,7 @@ else
 
 void loadfile(char *fname) {
 if (fat_mount) {
+	clear_song();
 	FIL fat_file;
 	fat_result = f_open(&fat_file, fname, FA_READ);
 	snprintf(filename, sizeof(filename), "%s", fname);
@@ -178,22 +180,17 @@ if (fat_mount) {
 		return;
 	}
 
-	tracklen = 32; // default
-	numtracks = 0;
-	songlen = 1;
-	char buf[48];
 
-/*  // Even something as simple as this is not working on the bitbox
+    /*
+  // Even something as simple as this is not working on the bitbox
 	UINT bytes_get;
-	f_read(&fat_file, buf, sizeof(buf), &bytes_get);
-    message("buf = %d\n", (int) sizeof(buf));
-	if (bytes_get)
-	{
-		snprintf(alert, sizeof(alert), buf);
-		//f_read(&fat_file, buf, sizeof(buf), &bytes_get);
-	}
-*/
+	char buf[512];
+	fat_result = f_read(&fat_file, buf, sizeof(buf), &bytes_get);
+    message("buf = %u/%d:\n%s\n", bytes_get, (int) sizeof(buf), buf);
+    snprintf(alert, sizeof(alert), "%u: %s", bytes_get, buf);
+    */
 
+	char buf[48];
 	int cmd[3];
 	int i1, i2, trk[4], transp[4], param[3], note, instr;
 	int i;
@@ -247,7 +244,7 @@ if (fat_mount) {
 	}
 
 	f_close(&fat_file);
-	//setalert("file loaded!");
+	setalert("file loaded");
 }
 else
 	setalert("error: no SD card mounted!");
@@ -263,6 +260,8 @@ void clear_song()
 	memset(tracking, 0, sizeof(tracking));
 	memset(song, 0, sizeof(song));
 	songlen = 1;
+	tracklen = 32; // default
+	numtracks = 0;
 }
 
 int realign_tracks(int new_tracklen)
