@@ -131,10 +131,11 @@ else
 void loadfile(char *fname) {
 if (fat_mount) {
 	clear_song();
-	FIL fat_file;
 	fat_result = f_open(&fat_file, fname, FA_READ);
 	snprintf(filename, sizeof(filename), "%s", fname);
-	if(fat_result != FR_OK) {
+	if(fat_result == FR_OK) {
+		setalert("Loading...");
+	} else {
 		switch (fat_result) {
 		case (FR_DISK_ERR):
 			setalert("low level error!"); break;

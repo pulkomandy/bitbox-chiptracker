@@ -26,4 +26,21 @@ void _exit()
 {
 	for(;;);
 }
+
+// I'm not sure why this is needed. Whatever.
+void _read()
+{
+}
+
+void _write()
+{
+}
+
+void _close()
+{
+}
+
+void _lseek()
+{
+}
 #endif
