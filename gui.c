@@ -5,7 +5,6 @@
 #include <math.h>
 
 // TODO:  
-// * io bug??? when opening a file, it hangs somehow on the bitbox (emulator fine).
 // FEATURES:
 // * HELP bar (under octaves):  includes I, D, A, C, V in commands, chart of valid cmds
 // * ` on a track, if on a note, goes to edit that note's instrument
@@ -51,8 +50,6 @@ char cmdinput[8];
 u8 cmdinputpos;
 u8 cmdinputnumeric;
 
-char alert[32];
-
 enum {
 	MODE_NONE = 0,
 	MODE_EDIT = 1
@@ -78,24 +75,27 @@ void resetgui()
 
 void setalert(const char *alerto)
 {
-	snprintf(alert, sizeof(alert), "%s                                ", alerto);
+	int i = print_at(0, LINES - 1, alerto);
+	char* alert = vram[LINES - 1];
+	for(; i < 32; i++)
+		alert[i] = ' ';
 }
 
 void setcmd(const char *cmdo)
 {
-	alert[0] = 0; // remove any alert
+	setalert("");
 	if(!cmd[0]) // if cmd had nothing in it
 	{
-		snprintf(cmd, sizeof(cmd), "%s", cmdo);
 		if (cmd[1] != cmdo[1]) // check if the previous command was the desired command
 		{	// if not, then we need to remove previous input.
 			cmdinput[0] = 0; // kill previous input
 			cmdinputpos = 0;
 		}
+		strcpy(cmd, cmdo);
 	}
 	else if (cmd[0] != cmdo[0]) // command did not start with cmdo[0]
 	{
-		snprintf(cmd, sizeof(cmd), "%s", cmdo);
+		strcpy(cmd, cmdo);
 		cmdinput[0] = 0;	// zero the input string, we just changed input.
 		cmdinputpos = 0;
 	}
@@ -125,13 +125,14 @@ void evalcmd()
 		switch (cmd[0])
 		{
 		case 'b': // basename of file
-			snprintf(filename, sizeof(filename), "%s.chp", cmdinput);
+			sprintf(filename, "%s.chp", cmdinput);
 			break;
 		case 'f': // file to open
 			silence();
 			char newfile[13];
-			snprintf(newfile, sizeof(newfile), "%s.chp", cmdinput);
+			sprintf(newfile, "%s.chp", cmdinput);
 			loadfile(newfile);
+			cmd[0] = 0;
 			resetgui();
 			redrawgui();
 			break;
@@ -211,21 +212,34 @@ void initgui() {
 	//atexit(exitgui);
 }
 
-void drawsonged(int x, int y, int height) {
+static void hexstr(char* target, uint8_t value)
+{
+	static const char hex[] = "0123456789ABCDEF";
+	target[0] = hex[value >> 4];
+	target[1] = hex[value & 0xF];
+}
+
+static void drawsonged(int x, int y, int height) {
 	int i, j;
 	char buf[6];
 
 	if(songy < songoffs) songoffs = songy;
 	if(songy >= songoffs + height) songoffs = songy - height + 1;
 
+	buf[5] = 0;
+	buf[2] = ':';
+
 	for(i = 0; i < songlen; i++) {
 		if(i >= songoffs && i - songoffs < height) {
 			move(y + i - songoffs, x + 0);
 			if(i == songy) attrset(A_BOLD);
-			snprintf(buf, sizeof(buf), "%02x: ", i);
+			hexstr(buf, i);
+			buf[3] = ' ';
+			buf[4] = 0;
 			addstr(buf);
 			for(j = 0; j < 4; j++) {
-				snprintf(buf, sizeof(buf), "%02x:%02x", song[i].track[j], song[i].transp[j]);
+				hexstr(buf, song[i].track[j]);
+				hexstr(buf + 3, song[i].transp[j]);
 				addstr(buf);
 				if(j != 3) addch(' ');
 			}
@@ -240,7 +254,7 @@ void drawsonged(int x, int y, int height) {
 	addstr("---------------------------");
 }
 
-void drawtracked(int x, int y, int height) {
+static void drawtracked(int x, int y, int height) {
 	int i, j;
 	char buf[6];
 
@@ -251,25 +265,31 @@ void drawtracked(int x, int y, int height) {
 		if(i >= trackoffs && i - trackoffs < height) {
 			move(y + i - trackoffs, x + 0);
 			if(i == tracky) attrset(A_BOLD);
-			snprintf(buf, sizeof(buf), "%02x: ", i);
+			buf[2] = ':';
+			buf[3] = ' ';
+			buf[4] = 0;
+			hexstr(buf, i);
 			addstr(buf);
 			if(track(currtrack,i)->note) {
-				snprintf(buf, sizeof(buf), "%s%d",
+				sprintf(buf, "%s%d ",
 					notenames[(track(currtrack,i)->note - 1) % 12],
 					(track(currtrack,i)->note - 1) / 12);
 			} else {
-				snprintf(buf, sizeof(buf), "---");
+				buf[0] = buf[1] = buf[2] = '-';
 			}
 			addstr(buf);
-			snprintf(buf, sizeof(buf), " %02x", track(currtrack,i)->instr);
+
+			buf[2] = 0;
+			hexstr(buf, track(currtrack, i)->instr);
 			addstr(buf);
-			for(j = 0; j < 2; j++) {
+			for(j = 0; j < 1; j++) { // 2nd column of effect hidden
+				buf[0] = ' ';
 				if(track(currtrack,i)->cmd[j]) {
-					snprintf(buf, sizeof(buf), " %c%02x",
-						track(currtrack,i)->cmd[j],
-						track(currtrack,i)->param[j]);
+					buf[1] = track(currtrack,i)->cmd[j];
+					hexstr(buf + 2, track(currtrack,i)->param[j]);
 				} else {
-					snprintf(buf, sizeof(buf), " ...");
+					buf[1] = buf[2] = buf[3] = '.';
+					buf[4] = 0;
 				}
 				addstr(buf);
 			}
@@ -282,7 +302,7 @@ void drawtracked(int x, int y, int height) {
 	}
 }
 
-void drawinstred(int x, int y, int height) {
+static void drawinstred(int x, int y, int height) {
 	int i;
 	char buf[8];
 
@@ -302,18 +322,21 @@ void drawinstred(int x, int y, int height) {
 		if(i >= instroffs && i - instroffs < height) {
 			move(y + i - instroffs, x + 0);
 			if(i == instry) attrset(A_BOLD);
-			snprintf(buf, sizeof(buf), "%02x: %c ", i, instrument[currinstr].line[i].cmd);
+			sprintf(buf, "%02x: %c ", i, instrument[currinstr].line[i].cmd);
 			addstr(buf);
 			if(instrument[currinstr].line[i].cmd == '+' || instrument[currinstr].line[i].cmd == '=') {
 				if(instrument[currinstr].line[i].param) {
-					snprintf(buf, sizeof(buf), "%s%d",
+					sprintf(buf, "%s%d",
 						notenames[(instrument[currinstr].line[i].param - 1) % 12],
 						(instrument[currinstr].line[i].param - 1) / 12);
 				} else {
-					snprintf(buf, sizeof(buf), "---");
+					buf[0] = buf[1] = buf[2] = '-';
+					buf[3] = 0;
 				}
 			} else {
-				snprintf(buf, sizeof(buf), "%02x-", instrument[currinstr].line[i].param);
+				hexstr(buf, instrument[currinstr].line[i].param);
+				buf[2] = '-';
+				buf[3] = 0;
 			}
 			addstr(buf);
 			attrset(A_NORMAL);
@@ -612,7 +635,7 @@ if ((c = getch()) != KEY_ERR)
 			if(mode & MODE_EDIT) {
 				x = hexdigit(c);
 				// helpful for debugging:
-				// snprintf(alert, sizeof(alert), "%d %x %c", (int) c, x, c);
+				// sprintf(alert, "%d %x %c", (int) c, x, c);
 				if(x >= 0) {
 					if(currtab == 2
 					&& instrx > 0
@@ -772,9 +795,9 @@ void drawgui() {
 	mvaddstr(2, 14, buf);
 	if (mode & MODE_EDIT)
 	{
-		snprintf(buf, sizeof(buf), "^S)ongspeed: %d  ", songspeed);
+		sprintf(buf, "^S)ongspeed: %d  ", songspeed);
 		mvaddstr(3, 1, buf);
-		snprintf(buf, sizeof(buf), "^T)racklength: %d  ", tracklen);
+		sprintf(buf, "^T)racklength: %d  ", tracklen);
 		mvaddstr(3, 30, buf);
 		mvaddstr(3, COLUMNS - 23, "^W)rite");
 	}
@@ -787,32 +810,23 @@ void drawgui() {
 	}
 	drawsonged(2, 6, LINES - 12);
 
-	snprintf(buf, sizeof(buf), "%02x", currtrack);
+	buf[2] = 0;
+	hexstr(buf, currtrack);
 	mvaddstr(5, 37, buf);
 	drawtracked(31, 6, LINES - 8);
 
-	snprintf(buf, sizeof(buf), "%02x", currinstr);
+	hexstr(buf, currinstr);
 	mvaddstr(5, 58, buf);
 	drawinstred(51, 6, LINES - 12);
 	
-	snprintf(buf, sizeof(buf), "%02d", octave);
+	hexstr(buf, octave);
 	mvaddstr(5, COLUMNS - 7, buf);
 
 	if (cmd[0])
 	{
-		snprintf(buf, sizeof(buf), "new %s? %s                      ", cmd, cmdinput);
+		sprintf(buf, "new %s? %s", cmd, cmdinput);
+		setalert(buf);
 	}
-	else
-	{
-		if (alert[0])
-			snprintf(buf, sizeof(buf), "%s                                ", alert);	
-		else
-		{
-			memset(buf, 32, sizeof(buf)-1);
-			buf[31] = 0;
-		}
-	}
-	mvaddstr(LINES-1, 1, buf);
 
 	switch(currtab) {
 		case 0:
@@ -831,7 +845,7 @@ void drawgui() {
 
 void redrawgui() {
 	erase();
-	mvaddstr(0, 0, " music chip tracker");
+	mvaddstr(0, 0, " MUSIC CHIP TRACKER");
 
 	mvaddstr(0, COLUMNS-29, "enter [");
 	mvaddstr(1, COLUMNS-29, "space [");
@@ -849,7 +863,9 @@ void redrawgui() {
 }
 
 void game_frame() {
+	// palette[A_NORMAL] = 0xFFFF0000 | PINK;
 	playroutine();
-	drawgui();
 	handleinput();
+	drawgui();
+	// palette[A_NORMAL]      = 0xFFFF0000; // boring white on black
 }

@@ -132,7 +132,7 @@ void loadfile(char *fname) {
 if (fat_mount) {
 	clear_song();
 	fat_result = f_open(&fat_file, fname, FA_READ);
-	snprintf(filename, sizeof(filename), "%s", fname);
+	strcpy(filename, fname);
 	if(fat_result == FR_OK) {
 		setalert("Loading...");
 	} else {
@@ -180,16 +180,6 @@ if (fat_mount) {
 		}
 		return;
 	}
-
-
-    /*
-  // Even something as simple as this is not working on the bitbox
-	UINT bytes_get;
-	char buf[512];
-	fat_result = f_read(&fat_file, buf, sizeof(buf), &bytes_get);
-    message("buf = %u/%d:\n%s\n", bytes_get, (int) sizeof(buf), buf);
-    snprintf(alert, sizeof(alert), "%u: %s", bytes_get, buf);
-    */
 
 	char buf[48];
 	int cmd[3];

@@ -30,6 +30,14 @@ enum keycodes{
 };
 */
 
+#define WHITE 0xFFFF
+#define BLACK 0x0000
+#define PINK  0xF00F
+#define RED   0xF800
+#define BLUE  0x001F
+#define GREEN 0x07EF
+#define YELLOW (GREEN | RED)
+#define CYAN   (GREEN | BLUE)
 
 static inline void initscr()
 {
@@ -56,16 +64,16 @@ static inline void refresh()
 
 static inline void mvaddstr(int y, int x, char* text)
 {
-	print_at(x, y, text);
+	int k = print_at(x, y, text);
 
 	Y = y;
-	X = (x + strlen(text)) % 80;
+	X = (x + k) % 80;
 }
 
 static inline void addstr(char* text)
 {
-	print_at(X, Y, text);
-	X = (X + strlen(text)) % 80;
+	int k = print_at(X, Y, text);
+	X = (X + k) % 80;
 }
 
 static inline void addch(char ch)
