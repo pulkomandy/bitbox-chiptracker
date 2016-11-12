@@ -4,6 +4,9 @@
 #include "ncurses.h"
 #include <math.h>
 
+#include "chiptune_engine.h"
+#include "fatfs/ff.h"
+
 // TODO:  
 // FEATURES:
 // * HELP bar (under octaves):  includes I, D, A, C, V in commands, chart of valid cmds
@@ -27,12 +30,12 @@ static const char * const notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#
 static const char * const notenames[] = {"C-", "C#", "D-", "Eb", "E-", "F-", "F#", "G-", "Ab", "A-", "Bb", "B-"};
 #endif
 
-char *keymap[2] = { // how to layout two octaves chromatically on the keyboard
+static const char *keymap[2] = { // how to layout two octaves chromatically on the keyboard
 	"zsxdcvgbhnjm,l.;/", // first octave
 	"q2w3er5t6y7ui9o0p" // second octave
 };
 
-char *validcmds = "0dfijlmtvw~+="; // TODO: need bitcrush
+static const char *validcmds = "0dfijlmtvw~+="; // TODO: need bitcrush
 
 #define SETLO(v,x) v = ((v) & 0xf0) | (x)
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
@@ -59,7 +62,9 @@ int mode = MODE_NONE;
 struct instrument iclip;
 struct trackline tclip[256];
 
-void resetgui()
+static void drawgui();
+
+static void resetgui()
 {
 	mode = MODE_NONE;
 	currtab = 0;
@@ -76,14 +81,13 @@ void resetgui()
 void setalert(const char *alerto)
 {
 	int i = print_at(0, LINES - 1, alerto);
-	char* alert = vram[LINES - 1];
+	char* alert = &vram[LINES - 1][0];
 	for(; i < 32; i++)
 		alert[i] = ' ';
 }
 
-void setcmd(const char *cmdo)
+static void setcmd(const char *cmdo)
 {
-	setalert("");
 	if(!cmd[0]) // if cmd had nothing in it
 	{
 		if (cmd[1] != cmdo[1]) // check if the previous command was the desired command
@@ -131,10 +135,11 @@ void evalcmd()
 			silence();
 			char newfile[13];
 			sprintf(newfile, "%s.chp", cmdinput);
-			loadfile(newfile);
-			cmd[0] = 0;
-			resetgui();
-			redrawgui();
+			if (loadfile(newfile)) {
+				cmd[0] = 0;
+				resetgui();
+				redrawgui();
+			}
 			break;
 		case 't': // tracklength
 			if (1 == sscanf(cmdinput, "%d", &result))
@@ -147,7 +152,7 @@ void evalcmd()
 						if (currtrack*tracklen > NTRACKLINE)
 							currtrack = NTRACKLINE/tracklen;
 					}
-					redrawgui();
+					drawgui();
 				}
 				else
 					setalert("need tracklength > 0 and < 257");
@@ -172,6 +177,45 @@ void evalcmd()
 	cmdinput[0] = 0;
 	cmdinputpos = 0;
 }
+
+
+static void listfiles(void)
+{
+	DIR dir;
+	FRESULT res;
+	FILINFO fno;
+
+	res = f_opendir(&dir, "");
+	if (res != FR_OK)
+		return;
+
+	clear();
+
+	res = f_readdir(&dir, &fno);
+	int line = 6;
+	for (;;)
+	{
+		res = f_readdir(&dir, &fno);
+
+		// End of dir?
+		if (res != FR_OK || fno.fname[0] == 0)
+			break;
+
+		char* pos = strchr(fno.fname, '.');
+		if (pos == NULL) {
+			continue;
+		}
+
+		if (!strcmp(".CHP", pos) || !strcmp(".chp", pos))
+		{
+			print_at(2, line++, fno.fname);
+		}
+	}
+
+	print_at(2, line++, "-------------");
+	f_closedir(&dir);
+}
+
 
 int hexdigit(char c) {
 	if(c >= '0' && c <= '9') return c - '0';
@@ -250,8 +294,10 @@ static void drawsonged(int x, int y, int height) {
 	}
 
 	// One blank line at song end
-	move(y + i - songoffs, x + 0);
-	addstr("---------------------------");
+	if (y + i - songoffs < height) {
+		move(y + i - songoffs, x + 0);
+		addstr("---------------------------");
+	}
 }
 
 static void drawtracked(int x, int y, int height) {
@@ -415,6 +461,7 @@ if ((c = getch()) != KEY_ERR)
 			break;
 		case 'O' - '@':
 			setcmd("file to open");
+			listfiles();
 			break;
 		case 'S' - '@':
 			setcmd("songspeed");
@@ -482,6 +529,7 @@ if ((c = getch()) != KEY_ERR)
 			break;
 		case 'O' - '@':
 			setcmd("file to open");
+			listfiles();
 			break;
 		case 'S' - '@':
 			if (mode & MODE_EDIT)
@@ -767,13 +815,12 @@ if ((c = getch()) != KEY_ERR)
 }
 }
 
-void drawgui() {
+static void drawgui() {
 	char buf[32];
 	int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
 	int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
 	int instrcols[] = {0, 2, 3};
 
-	//erase();
 	if (mode & MODE_EDIT)
 	{
 		mvaddstr(0, COLUMNS-22, "lock]  ");
@@ -791,8 +838,9 @@ void drawgui() {
 		mvaddstr(1, COLUMNS-22, "play]     ");
 	}
 
-	snprintf(buf, sizeof(buf), "%s                    ", filename);
-	mvaddstr(2, 14, buf);
+	mvaddstr(2, 14, "                      ");
+	mvaddstr(2, 14, filename);
+	text_color = 3;
 	if (mode & MODE_EDIT)
 	{
 		sprintf(buf, "^S)ongspeed: %d  ", songspeed);
@@ -803,12 +851,15 @@ void drawgui() {
 	}
 	else
 	{
-		snprintf(buf, sizeof(buf), "                    ");
-		mvaddstr(3, 1, buf);
-		mvaddstr(3, 30, buf);
+		mvaddstr(3, 1, "                    ");
+		mvaddstr(3, 30, "                    ");
 		mvaddstr(3, COLUMNS - 23, "       ");
 	}
-	drawsonged(2, 6, LINES - 12);
+
+	text_color = 0;
+	if (cmd[0] != 'f') {
+		drawsonged(2, 6, LINES - 8);
+	}
 
 	buf[2] = 0;
 	hexstr(buf, currtrack);
@@ -822,13 +873,30 @@ void drawgui() {
 	hexstr(buf, octave);
 	mvaddstr(5, COLUMNS - 7, buf);
 
-	if (cmd[0])
+	// Draw channel volumes
+	int p = 5;
+	for (int o = 0; o < 4; o++)
 	{
-		sprintf(buf, "new %s? %s", cmd, cmdinput);
-		setalert(buf);
+		int v = osc[o].volume >> 4;
+		int k;
+		move(7 + o, 80 - 17);
+		for (k = 0; k < v; k++)
+		{
+			vram_attr[5 + k][p] = 3 + osc[o].waveform;
+		}
+		for (; k < 16; k++)
+		{
+			vram_attr[5 + k][p] = 0;
+		}
+		p += 6;
 	}
 
-	switch(currtab) {
+	if (cmd[0])
+	{
+		int off = sprintf(buf, "new %s? %s", cmd, cmdinput);
+		setalert(buf);
+		move(LINES - 1, off);
+	} else switch(currtab) {
 		case 0:
 			move(6 + songy - songoffs, 0 + 6 + songcols[songx]);
 			break;
@@ -844,7 +912,8 @@ void drawgui() {
 }
 
 void redrawgui() {
-	erase();
+	memset(vram_attr, 3, SCREEN_H * SCREEN_W);
+	text_color = 3;
 	mvaddstr(0, 0, " MUSIC CHIP TRACKER");
 
 	mvaddstr(0, COLUMNS-29, "enter [");
@@ -854,6 +923,7 @@ void redrawgui() {
 	
 	mvaddstr(3, COLUMNS - 30, "^O)pen");
 	
+	text_color = 0;
 	mvaddstr(5, 1, "Song L1:\x1f\x1e R1:\x1f\x1e L2:\x1f\x1e R2:\x1f\x1e");
 
 	mvaddstr(5, 31, "Track    {}");

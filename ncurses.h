@@ -35,7 +35,7 @@ enum keycodes{
 #define PINK  0xF00F
 #define RED   0xF800
 #define BLUE  0x001F
-#define GREEN 0x07EF
+#define GREEN 0x07E0
 #define YELLOW (GREEN | RED)
 #define CYAN   (GREEN | BLUE)
 
@@ -46,10 +46,14 @@ static inline void initscr()
 
 	palette[A_NORMAL]      = 0xFFFF0000; // boring white on black
 	palette[A_REVERSE]     = 0x0000FFFF; // boring black on white
-	palette[A_BOLD]        = 0xFF000000;
-	palette[A_NORMAL  | 8] = 0xFFFF00FF; // boring white on grey
-	palette[A_REVERSE | 8] = 0x000000FF; // boring black on grey
-	palette[A_BOLD    | 8] = 0xFF0000FF;
+	palette[A_BOLD]        = 0xFF000000; // gold on black
+	palette[3]             = 0xFFFF0000 | PINK;
+	palette[4]             = 0xFFFF0000 | BLUE;
+	palette[5]             = 0xFFFF0000 | GREEN;
+	palette[6]             = 0xFFFF0000 | YELLOW;
+	palette[A_NORMAL  | 8] = 0xFFFF00FF; // white on blue (cursor)
+	palette[A_REVERSE | 8] = 0x000000FF; // black on blue (cursor)
+	palette[A_BOLD    | 8] = 0xFF0000FF; // gold on blue (cursor)
 }
 
 static inline void erase()

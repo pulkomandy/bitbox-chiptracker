@@ -9,22 +9,16 @@
 char filename[13];
 u16 numtracks;
 
-FATFS fat_fs;
-FIL fat_file;
-FRESULT fat_result;
-uint8_t fat_mount;
+static FATFS fat_fs;
+static FIL fat_file;
+static FRESULT fat_result;
 
 void initio()
 {
 	fat_result = f_mount(&fat_fs, "", 1);
-	if (fat_result == FR_OK)
-		fat_mount = 1;
-	else
-		fat_mount = 0;
 }
 
 void savefile(char *fname) {
-if (fat_mount) {
 	fat_result = f_open(&fat_file, fname, FA_WRITE | FA_OPEN_ALWAYS);
 	if (fat_result != FR_OK) {
 		switch (fat_result) {
@@ -124,12 +118,8 @@ if (fat_mount) {
 	f_close(&fat_file);
 	setalert("file saved!");
 }
-else
-	setalert("error: no SD card mounted!");
-}
 
-void loadfile(char *fname) {
-if (fat_mount) {
+bool loadfile(char *fname) {
 	clear_song();
 	fat_result = f_open(&fat_file, fname, FA_READ);
 	strcpy(filename, fname);
@@ -178,7 +168,7 @@ if (fat_mount) {
 		default:
 			setalert("weird, some other error!");
 		}
-		return;
+		return false;
 	}
 
 	char buf[48];
@@ -235,10 +225,7 @@ if (fat_mount) {
 	}
 
 	f_close(&fat_file);
-	setalert("file loaded");
-}
-else
-	setalert("error: no SD card mounted!");
+	return true;
 }
 
 void clear_song()

@@ -1,5 +1,6 @@
 #define TRACKLEN 32
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define NINST 40
@@ -66,7 +67,7 @@ void startplaytrack(int);
 
 // input/output stuff
 void initio();
-void loadfile(char *);
+bool loadfile(char *);
 void savefile(char *);
 void clear_song();
 
