@@ -264,7 +264,7 @@ static void hexstr(char* target, uint8_t value)
 }
 
 static void drawsonged(int x, int y, int height) {
-	int i, j;
+	int i, j, k = 0;
 	char buf[6];
 
 	if(songy < songoffs) songoffs = songy;
@@ -275,28 +275,31 @@ static void drawsonged(int x, int y, int height) {
 
 	for(i = 0; i < songlen; i++) {
 		if(i >= songoffs && i - songoffs < height) {
-			move(y + i - songoffs, x + 0);
+			move(y + k, x + 0);
 			if(i == songy) attrset(A_BOLD);
 			hexstr(buf, i);
-			buf[3] = ' ';
-			buf[4] = 0;
+			buf[3] = 0;
 			addstr(buf);
 			for(j = 0; j < 4; j++) {
+				addch(' ');
 				hexstr(buf, song[i].track[j]);
 				hexstr(buf + 3, song[i].transp[j]);
 				addstr(buf);
-				if(j != 3) addch(' ');
 			}
 			attrset(A_NORMAL);
-			if(playsong && songpos == (i + 1)) addch('*');
-			else addch(' ');
+			if(playsong && songpos == (i + 1))
+				addch('*');
+			else
+				addch(' ');
+			k++;
 		}
 	}
 
 	// One blank line at song end
-	if (y + i - songoffs < height) {
-		move(y + i - songoffs, x + 0);
-		addstr("---------------------------");
+	while (k < height) {
+		move(y + k, x + 0);
+		addstr("                            ");
+		k++;
 	}
 }
 
@@ -328,7 +331,7 @@ static void drawtracked(int x, int y, int height) {
 			buf[2] = 0;
 			hexstr(buf, track(currtrack, i)->instr);
 			addstr(buf);
-			for(j = 0; j < 1; j++) { // 2nd column of effect hidden
+			for(j = 0; j < 2; j++) {
 				buf[0] = ' ';
 				if(track(currtrack,i)->cmd[j]) {
 					buf[1] = track(currtrack,i)->cmd[j];
@@ -349,7 +352,7 @@ static void drawtracked(int x, int y, int height) {
 }
 
 static void drawinstred(int x, int y, int height) {
-	int i;
+	int i, j = 0;
 	char buf[8];
 
 	// TODO:
@@ -366,7 +369,7 @@ static void drawinstred(int x, int y, int height) {
 
 	for(i = 0; i < instrument[currinstr].length; i++) {
 		if(i >= instroffs && i - instroffs < height) {
-			move(y + i - instroffs, x + 0);
+			move(y + j, x + 0);
 			if(i == instry) attrset(A_BOLD);
 			sprintf(buf, "%02x: %c ", i, instrument[currinstr].line[i].cmd);
 			addstr(buf);
@@ -386,10 +389,16 @@ static void drawinstred(int x, int y, int height) {
 			}
 			addstr(buf);
 			attrset(A_NORMAL);
+			j++;
 		}
 	}
-	move(y + i - instroffs, x + 0);
-	addstr("--- - ---");
+
+	while (j < height)
+	{
+		move(y + j, x + 0);
+		addstr("         ");
+		j++;
+	}
 }
 
 void handleinput() {
@@ -879,14 +888,13 @@ static void drawgui() {
 	{
 		int v = osc[o].volume >> 4;
 		int k;
-		move(7 + o, 80 - 17);
 		for (k = 0; k < v; k++)
 		{
-			vram_attr[5 + k][p] = 3 + osc[o].waveform;
+			vram_attr[6 + k][p] = 3 + osc[o].waveform;
 		}
 		for (; k < 16; k++)
 		{
-			vram_attr[5 + k][p] = 0;
+			vram_attr[6 + k][p] = 0;
 		}
 		p += 6;
 	}
@@ -923,12 +931,36 @@ void redrawgui() {
 	
 	mvaddstr(3, COLUMNS - 30, "^O)pen");
 	
-	text_color = 0;
 	mvaddstr(5, 1, "Song L1:\x1f\x1e R1:\x1f\x1e L2:\x1f\x1e R2:\x1f\x1e");
 
 	mvaddstr(5, 31, "Track    {}");
 	mvaddstr(5, 51, "Instr.    []");
 	mvaddstr(5, COLUMNS - 15, "Octave:    <>");
+
+	mvaddstr(7, COLUMNS - 15, "-- KEYS --");
+	mvaddstr(8, COLUMNS - 15, "A)ppend");
+	mvaddstr(9, COLUMNS - 15, "I)nsert");
+	mvaddstr(10,COLUMNS - 15, "D)elete");
+	mvaddstr(11,COLUMNS - 15, "C)opy");
+	mvaddstr(12,COLUMNS - 15, "V) Paste");
+	mvaddstr(13,COLUMNS - 15, "TAB switch");
+	mvaddstr(14,COLUMNS - 15, "` Goto track");
+
+	mvaddstr(15,COLUMNS - 15, "-- COMMANDS --");
+	mvaddstr(16,COLUMNS - 15, "+ Rel. Note");
+	mvaddstr(17,COLUMNS - 15, "= Abs. Note");
+	mvaddstr(18,COLUMNS - 15, "d)uty cycle");
+	mvaddstr(19,COLUMNS - 15, "f)ade volume");
+	mvaddstr(20,COLUMNS - 15, "i)nertia");
+	mvaddstr(21,COLUMNS - 15, "j)ump");
+	mvaddstr(22,COLUMNS - 15, "s(l)ide");
+	mvaddstr(23,COLUMNS - 15, "pw(m)");
+	mvaddstr(24,COLUMNS - 15, "t)ime delay");
+	mvaddstr(25,COLUMNS - 15, "v)olume");
+	mvaddstr(26,COLUMNS - 15, "w)aveform TSPN");
+	mvaddstr(27,COLUMNS - 15, "~ Vibrato d/r");
+
+	text_color = 0;
 	drawgui();
 }
 
