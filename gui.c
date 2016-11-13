@@ -263,12 +263,34 @@ static void hexstr(char* target, uint8_t value)
 	target[1] = hex[value & 0xF];
 }
 
+static void scrollbar(int x, int y, int height, int pos, int range)
+{
+	int start = pos * height / range;
+	int end = start + height * height / range;
+
+	for (int i = 0; i < height; i++)
+	{
+		uint8_t* tgt = &vram_attr[y+i][x];
+		if (i >= start && i <= end)
+			*tgt = 6;
+		else
+			*tgt = 0;
+	}
+}
+
 static void drawsonged(int x, int y, int height) {
 	int i, j, k = 0;
 	char buf[6];
 
-	if(songy < songoffs) songoffs = songy;
-	if(songy >= songoffs + height) songoffs = songy - height + 1;
+	int showline;
+
+	if (playsong)
+		showline = (songpos - 1 + songlen) % songlen;
+	else
+		showline = songy;
+
+	if(showline < songoffs) songoffs = showline;
+	if(showline >= songoffs + height) songoffs = showline - height + 1;
 
 	buf[5] = 0;
 	buf[2] = ':';
@@ -295,11 +317,15 @@ static void drawsonged(int x, int y, int height) {
 		}
 	}
 
-	// One blank line at song end
+	// blank lines at song end
 	while (k < height) {
 		move(y + k, x + 0);
-		addstr("                            ");
+		addstr("                           ");
 		k++;
+	}
+
+	if (songlen > height) {
+		scrollbar(x+27, y, height, songoffs, songlen);
 	}
 }
 
@@ -310,8 +336,14 @@ static void drawtracked(int x, int y, int height) {
 	if (height > tracklen)
 		height = tracklen;
 
-	if(tracky < trackoffs) trackoffs = tracky;
-	if(tracky >= trackoffs + height) trackoffs = tracky - height + 1;
+	int position;
+	if (playtrack)
+		position = (trackpos - 1 + tracklen) % tracklen ;
+	else
+		position = tracky;
+
+	if(position < trackoffs) trackoffs = position;
+	if(position >= trackoffs + height) trackoffs = position - height + 1;
 
 	for(i = 0; i < tracklen; i++) {
 		if(i >= trackoffs && i - trackoffs < height) {
@@ -351,6 +383,10 @@ static void drawtracked(int x, int y, int height) {
 			if(playtrack && ((i + 1) % tracklen) == trackpos)
 				*(uint16_t*)(&vram_attr[y+i-trackoffs][x]) = 0x0505;
 		}
+	}
+
+	if (tracklen > height) {
+		scrollbar(x+18, y, height, trackoffs, tracklen);
 	}
 }
 
@@ -623,39 +659,47 @@ if ((c = getch()) != KEY_ERR)
 			}
 			break;
 		case KEY_UP:
+		case KEY_PAGEUP:
+		{
+			int off = (c == KEY_PAGEUP) ? 16 : 1;
 			switch(currtab) {
 				case 0:
-					if(songy) songy--;
+					if(songy >= off) songy-=off;
 					break;
 				case 1:
-					if(tracky) {
-						tracky--;
+					if(tracky >= off) {
+						tracky-=off;
 					} else {
 						tracky = tracklen - 1;
 					}
 					break;
 				case 2:
-					if(instry) instry--;
+					if(instry >= off) instry-=off;
 					break;
 			}
 			break;
+		}
 		case KEY_DOWN:
+		case KEY_PAGEDOWN:
+		{
+			int off = (c == KEY_PAGEDOWN) ? 16 : 1;
 			switch(currtab) {
 				case 0:
-					if(songy < songlen - 1) songy++;
+					if(songy < songlen - off) songy+=off;
 					break;
 				case 1:
-					if(tracky < tracklen - 1) {
-						tracky++;
+					if(tracky < tracklen - off) {
+						tracky+=off;
 					} else {
 						tracky = 0;
 					}
 					break;
 				case 2:
-					if(instry < instrument[currinstr].length - 1) instry++;
+					if(instry < instrument[currinstr].length - off) instry+=off;
 					break;
 			}
 			break;
+		}
 		case 'C': // copy
 			if (mode & MODE_EDIT)
 			{
@@ -897,23 +941,37 @@ static void drawgui() {
 		p += 6;
 	}
 
+	// Update cursor position
+	int cx, cy;
 	if (cmd[0])
 	{
 		int off = sprintf(buf, "new %s? %s", cmd, cmdinput);
 		setalert(buf);
-		move(LINES - 1, off);
-	} else switch(currtab) {
+		cy = LINES - 1;
+		cx = off;
+	} else {
+		switch(currtab) {
 		case 0:
-			move(6 + songy - songoffs, 0 + 6 + songcols[songx]);
+			cy = 6 + songy - songoffs;
+			cx = 0 + 6 + songcols[songx];
 			break;
 		case 1:
-			move(6 + tracky - trackoffs, 29 + 6 + trackcols[trackx]);
+			cy = 6 +tracky - trackoffs;
+			cx = 29 + 6 + trackcols[trackx];
 			break;
 		case 2:
-			move(6 + instry - instroffs, 49 + 6 + instrcols[instrx]);
+			cy = 6 + instry - instroffs;
+			cx = 49 + 6 + instrcols[instrx];
 			break;
+		}
+
+		if (cy < 6)
+			return;
+		if (cy >= LINES - 2)
+			return;
 	}
 
+	move (cy, cx);
 	refresh();
 }
 
