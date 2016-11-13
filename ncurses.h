@@ -45,7 +45,7 @@ static inline void initscr()
 	clear();
 
 	palette[A_NORMAL]      = 0xFFFF0000; // boring white on black
-	palette[A_REVERSE]     = 0x0000FFFF; // boring black on white
+	palette[A_REVERSE]     = 0xFF1F0000 | PINK; // light pink on pink
 	palette[A_BOLD]        = 0xFF000000; // gold on black
 	palette[3]             = 0xFFFF0000 | PINK;
 	palette[4]             = 0xFFFF0000 | BLUE;

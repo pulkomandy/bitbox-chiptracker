@@ -276,7 +276,10 @@ static void drawsonged(int x, int y, int height) {
 	for(i = 0; i < songlen; i++) {
 		if(i >= songoffs && i - songoffs < height) {
 			move(y + k, x + 0);
-			if(i == songy) attrset(A_BOLD);
+			if(i == songy)
+				attrset(A_BOLD);
+			else
+				attrset(A_NORMAL);
 			hexstr(buf, i);
 			buf[3] = 0;
 			addstr(buf);
@@ -286,11 +289,8 @@ static void drawsonged(int x, int y, int height) {
 				hexstr(buf + 3, song[i].transp[j]);
 				addstr(buf);
 			}
-			attrset(A_NORMAL);
 			if(playsong && songpos == (i + 1))
-				addch('*');
-			else
-				addch(' ');
+				*(uint16_t*)(&vram_attr[y+k][x]) = 0x0505;
 			k++;
 		}
 	}
@@ -307,13 +307,19 @@ static void drawtracked(int x, int y, int height) {
 	int i, j;
 	char buf[6];
 
+	if (height > tracklen)
+		height = tracklen;
+
 	if(tracky < trackoffs) trackoffs = tracky;
 	if(tracky >= trackoffs + height) trackoffs = tracky - height + 1;
 
 	for(i = 0; i < tracklen; i++) {
 		if(i >= trackoffs && i - trackoffs < height) {
 			move(y + i - trackoffs, x + 0);
-			if(i == tracky) attrset(A_BOLD);
+			if(i == tracky)
+				attrset(A_BOLD);
+			else
+				attrset(A_NORMAL);
 			buf[2] = ':';
 			buf[3] = ' ';
 			buf[4] = 0;
@@ -342,11 +348,8 @@ static void drawtracked(int x, int y, int height) {
 				}
 				addstr(buf);
 			}
-			attrset(A_NORMAL);
-			if(playtrack && ((i + 1) % tracklen) == trackpos) {
-				addch('*');
-			} else
-				addch(' ');
+			if(playtrack && ((i + 1) % tracklen) == trackpos)
+				*(uint16_t*)(&vram_attr[y+i-trackoffs][x]) = 0x0505;
 		}
 	}
 }
@@ -832,38 +835,33 @@ static void drawgui() {
 
 	if (mode & MODE_EDIT)
 	{
-		mvaddstr(0, COLUMNS-22, "lock]  ");
+		mvaddstr(0, COLUMNS-22, "lock");
 	}
 	else
 	{
-		mvaddstr(0, COLUMNS-22, "unlock]");
+		mvaddstr(0, COLUMNS-22, "edit");
 	}
 	if (playsong||playtrack)
 	{
-		mvaddstr(1, COLUMNS-22, "stop play]");
+		mvaddstr(1, COLUMNS-22, "stop");
 	}
 	else
 	{
-		mvaddstr(1, COLUMNS-22, "play]     ");
+		mvaddstr(1, COLUMNS-22, "play");
 	}
 
 	mvaddstr(2, 14, "                      ");
 	mvaddstr(2, 14, filename);
 	text_color = 3;
 	if (mode & MODE_EDIT)
-	{
-		sprintf(buf, "^S)ongspeed: %d  ", songspeed);
-		mvaddstr(3, 1, buf);
-		sprintf(buf, "^T)racklength: %d  ", tracklen);
-		mvaddstr(3, 30, buf);
-		mvaddstr(3, COLUMNS - 23, "^W)rite");
-	}
+		text_color = 3;
 	else
-	{
-		mvaddstr(3, 1, "                    ");
-		mvaddstr(3, 30, "                    ");
-		mvaddstr(3, COLUMNS - 23, "       ");
-	}
+		text_color = A_REVERSE;
+	sprintf(buf, "^S)ongspeed: %d  ", songspeed);
+	mvaddstr(3, 1, buf);
+	sprintf(buf, "^T)racklength: %d  ", tracklen);
+	mvaddstr(3, 30, buf);
+	mvaddstr(3, COLUMNS - 23, "^W)rite");
 
 	text_color = 0;
 	if (cmd[0] != 'f') {
@@ -924,8 +922,8 @@ void redrawgui() {
 	text_color = 3;
 	mvaddstr(0, 0, " MUSIC CHIP TRACKER");
 
-	mvaddstr(0, COLUMNS-29, "enter [");
-	mvaddstr(1, COLUMNS-29, "space [");
+	mvaddstr(0, COLUMNS-29, "enter [    ]");
+	mvaddstr(1, COLUMNS-29, "space [    ]");
 	
 	mvaddstr(2, 1, "^F)ilename:");
 	
