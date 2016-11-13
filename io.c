@@ -72,6 +72,7 @@ void savefile(char *fname) {
 	{
 		 f_printf(&fat_file, "tracklength %02x\n\n", tracklen);
 	}
+	f_printf(&fat_file, "speed %02x\n\n", songspeed);
 	for(i = 0; i < songlen; i++) {
 		f_printf(&fat_file, "songline %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 			i,
@@ -175,6 +176,11 @@ bool loadfile(char *fname) {
 	int cmd[3];
 	int i1, i2, trk[4], transp[4], param[3], note, instr;
 	int i;
+
+	// Restore default values for old songs that don't have one
+	tracklen = 32;
+	songspeed = 4;
+
 	while (f_gets(buf, sizeof(buf), &fat_file)) {
 		if(9 == rsscanf(buf, "songline %x %x %x %x %x %x %x %x %x",
 			&i1,
@@ -221,6 +227,8 @@ bool loadfile(char *fname) {
 			if(instrument[i1].length <= i2) instrument[i1].length = i2 + 1;
 		} else if(1 == rsscanf(buf, "tracklength %x", &i)) {
 			tracklen = i;
+		} else if(1 == rsscanf(buf, "speed %x", &i)) {
+			songspeed = i;
 		}
 	}
 
@@ -287,220 +295,6 @@ int realign_tracks(int new_tracklen)
 	return returnvalue; // if everything is alright
 }
 
-//
-//
-// deprecated
-//
-/*
-void optimize() {
-	u8 used[256], replace[256];
-	int i, j;
-
-	memset(used, 0, sizeof(used));
-	for(i = 0; i < songlen; i++) {
-		for(j = 0; j < 4; j++) {
-			used[song[i].track[j]] = 1;
-		}
-	}
-
-	j = 1;
-	replace[0] = 0;
-	for(i = 1; i < 256; i++) {
-		if(used[i]) {
-			replace[i] = j;
-			j++;
-		} else {
-			replace[i] = 0;
-		}
-	}
-
-	for(i = 1; i < 256; i++) {
-		if(replace[i] && replace[i] != i) {
-			memcpy(&track[replace[i]], &track[i], sizeof(struct track));
-		}
-	}
-
-	for(i = 0; i < songlen; i++) {
-		for(j = 0; j < 4; j++) {
-			song[i].track[j] = replace[song[i].track[j]];
-		}
-	}
-
-	for(i = 1; i < 256; i++) {
-		u8 last = 255;
-
-		for(j = 0; j < tracklen; j++) {
-			if(track[i].line[j].instr) {
-				if(track[i].line[j].instr == last) {
-					track[i].line[j].instr = 0;
-				} else {
-					last = track[i].line[j].instr;
-				}
-			}
-		}
-	}
-}
-
-static FILE *exportfile = 0;
-static int exportbits = 0;
-static int exportcount = 0;
-static int exportseek = 0;
-
-int packcmd(u8 ch) {
-	if(!ch) return 0;
-	if(strchr(validcmds, ch)) {
-		return strchr(validcmds, ch) - validcmds;
-	}
-	return 0;
-}
-
-void exportdata(FILE *f, int maxtrack, int *resources) {
-	int i, j;
-	int nres = 0;
-
-	exportfile = f;
-	exportbits = 0;
-	exportcount = 0;
-	exportseek = 0;
-
-	for(i = 0; i < 16 + maxtrack; i++) {
-		exportchunk(resources[i], 13);
-	}
-
-	resources[nres++] = alignbyte();
-
-	for(i = 0; i < songlen; i++) {
-		for(j = 0; j < 4; j++) {
-			if(song[i].transp[j]) {
-				exportchunk(1, 1);
-				exportchunk(song[i].track[j], 6);
-				exportchunk(song[i].transp[j], 4);
-			} else {
-				exportchunk(0, 1);
-				exportchunk(song[i].track[j], 6);
-			}
-		}
-	}
-
-	for(i = 1; i < 16; i++) {
-		resources[nres++] = alignbyte();
-
-		if(instrument[i].length > 1) {
-			for(j = 0; j < instrument[i].length; j++) {
-				exportchunk(packcmd(instrument[i].line[j].cmd), 8);
-				exportchunk(instrument[i].line[j].param, 8);
-			}
-		}
-
-		exportchunk(0, 8);
-	}
-
-	for(i = 1; i <= maxtrack; i++) {
-		resources[nres++] = alignbyte();
-
-		for(j = 0; j < tracklen; j++) {
-			u8 cmd = packcmd(track[i].line[j].cmd[0]);
-
-			exportchunk(!!track[i].line[j].note, 1);
-			exportchunk(!!track[i].line[j].instr, 1);
-			exportchunk(!!cmd, 1);
-
-			if(track[i].line[j].note) {
-				exportchunk(track[i].line[j].note, 7);
-			}
-
-			if(track[i].line[j].instr) {
-				exportchunk(track[i].line[j].instr, 4);
-			}
-
-			if(cmd) {
-				exportchunk(cmd, 4);
-				exportchunk(track[i].line[j].param[0], 8);
-			}
-		}
-	}
-}
-
-void export() {
-	// song.c song.h
-
-	char cfilename[1024];
-	snprintf(cfilename, sizeof(cfilename), "%s.c", filename);
-	FILE *f = fopen(cfilename, "w");
-	snprintf(cfilename, sizeof(cfilename), "%s.h", filename);
-	FILE *hf = fopen(cfilename, "w");
-	int i, j;
-	int maxtrack = 0;
-	int resources[256];
-
-	exportfile = 0;
-	exportbits = 0;
-	exportcount = 0;
-	exportseek = 0;
-
-	for(i = 0; i < songlen; i++) {
-		for(j = 0; j < 4; j++) {
-			if(maxtrack < song[i].track[j]) maxtrack = song[i].track[j];
-		}
-	}
-
-	f_printf(&fat_file, "const unsigned char \tsongdata[] = {\n\n");
-
-	fprintf(hf, "#define MAXTRACK\t0x%02x\n", maxtrack);
-	fprintf(hf, "#define SONGLEN\t\t0x%02x\n", songlen);
-
-	exportdata(0, maxtrack, resources);
-
-	f_printf(&fat_file, "// ");
-	for(i = 0; i < 16 + maxtrack; i++) {
-		f_printf(&fat_file, "%04x ", resources[i]);
-	}
-	f_printf(&fat_file, "\n");
-
-	exportdata(f, maxtrack, resources);
-	f_printf(&fat_file, "};\n");
-
-	fclose(f);
-	fclose(hf);
-}
-
-
-void putbit(int x) {
-	if(x) {
-		exportbits |= (1 << exportcount);
-	}
-	exportcount++;
-	if(exportcount == 8) {
-		if(exportfile) {
-			fprintf(exportfile, "0x%02x, ", exportbits);
-		}
-		exportseek++;
-		exportbits = 0;
-		exportcount = 0;
-	}
-}
-
-void exportchunk(int data, int bits) {
-	int i;
-
-	for(i = 0; i < bits; i++) {
-		putbit(!!(data & (1 << i)));
-	}
-}
-
-int alignbyte() {
-	if(exportcount) {
-		if(exportfile) {
-			fprintf(exportfile, "\n0x%02x,\n", exportbits);
-		}
-		exportseek++;
-		exportbits = 0;
-		exportcount = 0;
-	}
-	if(exportfile) fprintf(exportfile, "\n");
-	return exportseek;
-}
-*/
 
 // Reduced version of scanf (%d, %x, %c, %n are supported)
 // thanks to https://groups.google.com/d/msg/comp.arch.fpga/ImYAZ6X_Wm4/WE-gYX-mNSgJ
