@@ -129,12 +129,12 @@ void evalcmd()
 		switch (cmd[0])
 		{
 		case 'b': // basename of file
-			sprintf(filename, "%s.chp", cmdinput);
+			sprintf(filename, "%s.song", cmdinput);
 			break;
 		case 'f': // file to open
 			silence();
 			char newfile[13];
-			sprintf(newfile, "%s.chp", cmdinput);
+			sprintf(newfile, "%s.song", cmdinput);
 			if (loadfile(newfile)) {
 				cmd[0] = 0;
 				resetgui();
@@ -206,7 +206,7 @@ static void listfiles(void)
 			continue;
 		}
 
-		if (!strcmp(".CHP", pos) || !strcmp(".chp", pos))
+		if (!strcmp(".SONG", pos) || !strcmp(".song", pos))
 		{
 			print_at(2, line++, fno.fname);
 		}
