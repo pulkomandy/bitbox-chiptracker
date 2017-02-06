@@ -1,7 +1,8 @@
 # Chiptracker
 
-Random changes to (http://www.linusakesson.net/hardware/chiptune.php)
+Chip tracker for the bitbox, based on  [lft's HArdware Chiptune](http://www.linusakesson.net/hardware/chiptune.php)
 
+![screenshot](chiptracker.png)
 
 ## Major changes
 
@@ -11,7 +12,7 @@ move around nimbly.
 TODO:  Add some extra info in song column, to show Track and Transposition columns.
 
 
-## Old (very useful) Documentation
+## Original Documentation
 
 Hi!
 
