@@ -13,7 +13,7 @@ void game_init()
 
 #ifndef EMULATOR
 // This is needed for use of sprintf
-void* _sbrk(intptr_t increment)
+void* __attribute__((used)) _sbrk(intptr_t increment)
 {
 	extern void* end;
 	static void* ptr = &end;

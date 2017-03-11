@@ -1,6 +1,7 @@
 #include "stuff.h"
-#include <chiptune_engine.h>
-#include <chiptune_player.h>
+#include "lib/chiptune/chiptune.h"
+#include "lib/chiptune/player.h"
+#include "lib/chiptune/player_internals.h"
 
 //static u16 callbackwait;
 
@@ -228,7 +229,7 @@ void playroutine() {			// called at 50 Hz
 			s16 diff;
 
 			slur = channel[ch].slur;
-			diff = freqtable[channel[ch].inote] - slur;
+			diff = chip_freqtable[channel[ch].inote] - slur;
 			//diff >>= channel[ch].inertia;
 			if(diff > 0) {
 				if(diff > channel[ch].inertia) diff = channel[ch].inertia;
@@ -238,12 +239,12 @@ void playroutine() {			// called at 50 Hz
 			slur += diff;
 			channel[ch].slur = slur;
 		} else {
-			slur = freqtable[channel[ch].inote];
+			slur = chip_freqtable[channel[ch].inote];
 		}
 		osc[ch].freq =
 			slur +
 			channel[ch].bend +
-			((channel[ch].vdepth * sinetable[channel[ch].vpos & 63]) >> 2);
+			((channel[ch].vdepth * chip_sinetable[channel[ch].vpos & 63]) >> 2);
 		channel[ch].bend += channel[ch].bendd;
 		vol = osc[ch].volume + channel[ch].volumed;
 		if(vol < 0) vol = 0;
