@@ -4,7 +4,9 @@
 #include "ncurses.h"
 #include <math.h>
 
-#include "chiptune_engine.h"
+#include "lib/events/events.h"
+
+#include "lib/chiptune/chiptune.h"
 #include "fatfs/ff.h"
 
 // TODO:  
@@ -29,6 +31,7 @@ static const char * const notenames[] = {"C-", "C#", "D-", "D#", "E-", "F-", "F#
 #else
 static const char * const notenames[] = {"C-", "C#", "D-", "Eb", "E-", "F-", "F#", "G-", "Ab", "A-", "Bb", "B-"};
 #endif
+uint8_t text_color;
 
 static const char *keymap[2] = { // how to layout two octaves chromatically on the keyboard
 	"zsxdcvgbhnjm,l.;/", // first octave
@@ -39,7 +42,6 @@ static const char *validcmds = "0dfijlmtvw~+="; // TODO: need bitcrush
 
 #define SETLO(v,x) v = ((v) & 0xf0) | (x)
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
-
 int songx, songy, songoffs;
 u16 songlen=1;
 int trackx=0, tracky=0, trackoffs=0;
@@ -80,7 +82,7 @@ static void resetgui()
 
 void setalert(const char *alerto)
 {
-	int i = print_at(0, LINES - 1, alerto);
+	int i = print_at(0, LINES - 1, text_color, alerto);
 	char* alert = &vram[LINES - 1][0];
 	for(; i < 32; i++)
 		alert[i] = ' ';
@@ -208,11 +210,11 @@ static void listfiles(void)
 
 		if (!strcmp(".SONG", pos) || !strcmp(".song", pos))
 		{
-			print_at(2, line++, fno.fname);
+			print_at(2, line++, text_color, fno.fname);
 		}
 	}
 
-	print_at(2, line++, "-------------");
+	print_at(2, line++, text_color, "-------------");
 	f_closedir(&dir);
 }
 
@@ -1021,9 +1023,11 @@ void redrawgui() {
 }
 
 void game_frame() {
+	events_poll();
 	// palette[A_NORMAL] = 0xFFFF0000 | PINK;
 	playroutine();
 	handleinput();
 	drawgui();
 	// palette[A_NORMAL]      = 0xFFFF0000; // boring white on black
+
 }

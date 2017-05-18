@@ -1,14 +1,16 @@
-/* ncurses wrapper for bitbox simple text mode
+/* ncurses wrapper for bitbox text mode
  *
  * Copyright 2015, Adrien Destugues <pulkomandy@pulkomandy.tk>
  *
  * This file is distributed under the terms of the MIT license.
  */
 
-#include <simple.h>
+#include "lib/textmode/textmode.h"
+#include "lib/events/events.h"
 
 int X;
 int Y;
+extern uint8_t text_color;
 
 enum attributes{
 	A_NORMAL,
@@ -19,30 +21,32 @@ enum attributes{
 #define LINES 30
 #define COLUMNS 80
 
-#define WHITE 0xFFFF
-#define BLACK 0x0000
-#define PINK  0xF00F
-#define RED   0xF800
-#define BLUE  0x001F
-#define GREEN 0x07E0
-#define YELLOW (GREEN | RED)
-#define CYAN   (GREEN | BLUE)
+#define WHITE  RGB(255,255,255)
+#define BLACK  RGB(0,0,0)
+#define PINK   RGB(200,0,200)
+#define LIGHTPINK   RGB(255,130,255)
+#define RED    RGB(255,0,0)
+#define BLUE   RGB(0,0,255)
+#define GREEN  RGB(0,255,0)
+#define YELLOW RGB(255,255,0)
+#define CYAN   RGB(0,255,255)
 
 static inline void initscr()
 {
 	text_color = 0;
 	clear();
 
-	palette[A_NORMAL]      = 0xFFFF0000; // boring white on black
-	palette[A_REVERSE]     = 0xFF1F0000 | PINK; // light pink on pink
-	palette[A_BOLD]        = 0xFF000000; // gold on black
-	palette[3]             = 0xFFFF0000 | PINK;
-	palette[4]             = 0xFFFF0000 | BLUE;
-	palette[5]             = 0xFFFF0000 | GREEN;
-	palette[6]             = 0xFFFF0000 | YELLOW;
-	palette[A_NORMAL  | 8] = 0xFFFF00FF; // white on blue (cursor)
-	palette[A_REVERSE | 8] = 0x000000FF; // black on blue (cursor)
-	palette[A_BOLD    | 8] = 0xFF0000FF; // gold on blue (cursor)
+    set_palette(A_NORMAL, WHITE,BLACK); // boring white on black
+	set_palette(A_REVERSE, LIGHTPINK, PINK); // light pink on pink
+	set_palette(A_BOLD, YELLOW, BLACK); // gold on black
+	set_palette(3, WHITE, PINK);
+	set_palette(4, WHITE, BLUE);
+	set_palette(5, WHITE, GREEN);
+	set_palette(6, WHITE, YELLOW);
+
+	set_palette(A_NORMAL  | 8,WHITE, BLUE); // white on blue (cursor)
+	set_palette(A_REVERSE | 8,BLACK, BLUE); // black on blue (cursor)
+	set_palette(A_BOLD    | 8,YELLOW, BLUE); // gold on blue (cursor)
 }
 
 static inline void erase()
@@ -57,7 +61,7 @@ static inline void refresh()
 
 static inline void mvaddstr(int y, int x, char* text)
 {
-	int k = print_at(x, y, text);
+	int k = print_at(x, y, text_color, text);
 
 	Y = y;
 	X = (x + k) % 80;
@@ -65,7 +69,7 @@ static inline void mvaddstr(int y, int x, char* text)
 
 static inline void addstr(char* text)
 {
-	int k = print_at(X, Y, text);
+	int k = print_at(X, Y, text_color, text);
 	X = (X + k) % 80;
 }
 

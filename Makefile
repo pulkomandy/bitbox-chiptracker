@@ -1,10 +1,14 @@
 USE_SDCARD = 1      # allow use of SD card for io
 
 NAME = chiptracker
-GAME_C_FILES = main.c chip.c gui.c io.c extrafat.c
-VGA_SIMPLE_MODE = 10 # textmode with colors
-USE_CHIPTUNE = 1
+GAME_C_FILES = main.c chip.c gui.c io.c extrafat.c \
+	lib/chiptune/chiptune.c  lib/chiptune/player.c \
+	lib/textmode/textmode.c \
+	lib/events/events.c \
+
+
+DEFINES += MAX_CHANNELS=4 FONT_W=8 FONT_H=16
 
 BITBOX ?= ../bitbox
 
-include $(BITBOX)/lib/bitbox.mk
+include $(BITBOX)/kernel/bitbox.mk
