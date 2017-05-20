@@ -23,7 +23,6 @@ struct instrument instrument[NINST];
 struct trackline tracking[NTRACKLINE];
 struct songline song[256];
 
-volatile struct oscillator osc[4];
 struct channel channel[4];
 
 void silence() {
@@ -66,6 +65,8 @@ void myruncmd(u8 ch, u8 cmd, u8 param, u8 context) {
 		case 0:
 			channel[ch].inum = 0;
 			break;
+		case 'b':
+			osc[ch].bitcrush = param & 0x7;
 		case 'd':
 			osc[ch].duty = param << 8;
 			break;

@@ -11,7 +11,6 @@
 
 // TODO:  
 // FEATURES:
-// * HELP bar (under octaves):  includes I, D, A, C, V in commands, chart of valid cmds
 // * ` on a track, if on a note, goes to edit that note's instrument
 // * Home/End - sends you to tracky songy = 0 type of thing, depending on tab
 // * PgUp/PgDn - sends you up/down the list by 16 or so lines
@@ -38,7 +37,7 @@ static const char *keymap[2] = { // how to layout two octaves chromatically on t
 	"q2w3er5t6y7ui9o0p" // second octave
 };
 
-static const char *validcmds = "0dfijlmtvw~+="; // TODO: need bitcrush
+static const char *validcmds = "0bdfijlmtvw~+=";
 
 #define SETLO(v,x) v = ((v) & 0xf0) | (x)
 #define SETHI(v,x) v = ((v) & 0x0f) | ((x) << 4)
@@ -954,6 +953,7 @@ static void drawgui() {
 	} else {
 		switch(currtab) {
 		case 0:
+		default:
 			cy = 6 + songy - songoffs;
 			cx = 0 + 6 + songcols[songx];
 			break;
@@ -1007,16 +1007,17 @@ void redrawgui() {
 	mvaddstr(15,COLUMNS - 15, "-- COMMANDS --");
 	mvaddstr(16,COLUMNS - 15, "+ Rel. Note");
 	mvaddstr(17,COLUMNS - 15, "= Abs. Note");
-	mvaddstr(18,COLUMNS - 15, "d)uty cycle");
-	mvaddstr(19,COLUMNS - 15, "f)ade volume");
-	mvaddstr(20,COLUMNS - 15, "i)nertia");
-	mvaddstr(21,COLUMNS - 15, "j)ump");
-	mvaddstr(22,COLUMNS - 15, "s(l)ide");
-	mvaddstr(23,COLUMNS - 15, "pw(m)");
-	mvaddstr(24,COLUMNS - 15, "t)ime delay");
-	mvaddstr(25,COLUMNS - 15, "v)olume");
-	mvaddstr(26,COLUMNS - 15, "w)aveform TSPN");
-	mvaddstr(27,COLUMNS - 15, "~ Vibrato d/r");
+	mvaddstr(18,COLUMNS - 15, "b)itcrush");
+	mvaddstr(19,COLUMNS - 15, "d)uty cycle");
+	mvaddstr(20,COLUMNS - 15, "f)ade volume");
+	mvaddstr(21,COLUMNS - 15, "i)nertia");
+	mvaddstr(22,COLUMNS - 15, "j)ump");
+	mvaddstr(23,COLUMNS - 15, "s(l)ide");
+	mvaddstr(24,COLUMNS - 15, "pw(m)");
+	mvaddstr(25,COLUMNS - 15, "t)ime delay");
+	mvaddstr(26,COLUMNS - 15, "v)olume");
+	mvaddstr(27,COLUMNS - 15, "w)aveform TSPN");
+	mvaddstr(28,COLUMNS - 15, "~ Vibrato d/r");
 
 	text_color = 0;
 	drawgui();
