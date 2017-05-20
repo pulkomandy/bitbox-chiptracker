@@ -1,31 +1,31 @@
 # Chiptracker
 
-Chip tracker for the bitbox, based on  [lft's HArdware Chiptune](http://www.linusakesson.net/hardware/chiptune.php)
+Chip tracker for the bitbox, based on  [lft's Hardware Chiptune](http://www.linusakesson.net/hardware/chiptune.php)
 
 ![screenshot](chiptracker.png)
 
-## Major changes
+## Updated documentation (things that changed from lft's original tracker)
 
-Squashed PLAY/EDIT/IDLE modes down into one, because it felt difficult to
-move around nimbly. 
+Start the tracker by loading the binary from the bitbox bootloader, or use the
+emulator version.
 
-TODO:  Add some extra info in song column, to show Track and Transposition columns.
+* Press Ctrl+O to list and load files (from SD card or current directory in emu).
+* Press Ctrl+F to change the file name, then Ctrl+W to save.
+* Press space to play/pause, enter to toggle edit mode
+* In the emulator, press escape to exit. On real hardware, use the reset button.
 
+Don't worry, there are on-screen hints to all this.
 
-## Original Documentation
+## Original Documentation (with out of date information removed)
 
 Hi!
 
-This is the tracker I used in the hardware chiptune project
-(http://www.linusakesson.net/hardware/chiptune.php). It was never intended to
+This is the tracker I used in the
+[hardware chiptune project](http://www.linusakesson.net/hardware/chiptune.php).
+It was never intended to
 be used by anyone other than me, so it's not exactly user friendly.
 
 This is a quick documentation attempt.
-
-You have to give the tracker a file name when you're starting it. So type
-"./tracker test2.song" to start working on the existing song, or type e.g.
-"./tracker my_song.song" to start from scratch. Although the GUI hints that you
-can later press ^F to change the file name, this was never implemented.
 
 Once you've started the tracker, you'll see that the screen is divided into
 three sections: song, track and instrument. Use TAB to move between these
@@ -41,10 +41,8 @@ Use < and > to change the current octave. The main part of the keyboard is used
 to enter notes. The keyboard layout is adapted for a US qwerty keymap. You can
 edit gui.c to change this to fit a Dvorak keymap instead.
 
-Press ^E (control-E) to exit without saving. Press ^W ("write") to save. Press
-\# to optimize the song (remove unused tracks, move tracks together) and % to
-export the song into a packed format. (% will always export to two files called
-"exported.s" and "exported.h" in the current working directory).
+Press ^W ("write") to save. Press
+\# to optimize the song (remove unused tracks, move tracks together).
 
 In the song and instrument editors, use capital A, I and D to add, insert and
 delete lines. In the track and instrument editors, use capital C and V for copy
@@ -70,8 +68,7 @@ The available commands are:
 	~xy Set vibrato. x = depth, y = rate.
 
 Investigate test2.song, and play around, and you'll probably get the hang of
-things! Remember that the packed format only supports one command per track
-line (see homepage).
+things!
 
 Good luck!
 
