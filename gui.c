@@ -208,7 +208,7 @@ static void listfiles(void)
 			continue;
 		}
 
-		if (!strcmp(".SONG", pos) || !strcmp(".song", pos))
+		if (!strncmp(".SON", pos, 4) || !strncmp(".son", pos, 4))
 		{
 			print_at(2, line++, text_color, fno.fname);
 		}
