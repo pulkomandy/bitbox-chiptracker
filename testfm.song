@@ -178,16 +178,16 @@ trackline 11 0c 16 03 00 00 00 00
 trackline 11 0e 17 03 00 00 00 00
 trackline 11 10 18 04 00 00 00 00
 
-instrumentline 01 00 2b 31 2b 25
-instrumentline 01 01 77 00 77 00
+instrumentline 01 00 2b 31 2b 38
+instrumentline 01 01 77 04 77 04
 instrumentline 01 02 64 80 6c 00
 instrumentline 01 03 76 80 76 f6
 instrumentline 01 04 66 f9 66 f0
-instrumentline 02 00 2b 31 2b 25
-instrumentline 02 01 77 00 77 00
-instrumentline 02 02 64 80 6c 00
-instrumentline 02 03 76 80 76 f6
-instrumentline 02 04 66 fe 66 f7
+instrumentline 02 00 2b 31 2b 38
+instrumentline 02 01 77 04 77 04
+instrumentline 02 02 64 80 64 80
+instrumentline 02 03 76 ff 76 5f
+instrumentline 02 04 66 fc 66 ff
 instrumentline 03 00 2b 31 2b 31
 instrumentline 03 01 77 00 77 00
 instrumentline 03 02 64 80 64 80
