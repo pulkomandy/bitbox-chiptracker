@@ -107,11 +107,13 @@ void savefile(char *fname) {
 	for(i = 1; i < NINST; i++) {
 		if(instrument[i].length > 1) {
 			for(j = 0; j < instrument[i].length; j++) {
-				f_printf(&fat_file, "instrumentline %02x %02x %02x %02x\n",
+				f_printf(&fat_file, "instrumentline %02x %02x %02x %02x %02x %02x\n",
 					i,
 					j,
 					instrument[i].line[j].cmd,
-					instrument[i].line[j].param);
+					instrument[i].line[j].param,
+					instrument[i].line[j].cmd2,
+					instrument[i].line[j].param2);
 			}
 		}
 	}
@@ -216,14 +218,29 @@ bool loadfile(char *fname) {
 				track(i1, i2)->cmd[i] = cmd[i];
 				track(i1, i2)->param[i] = param[i];
 			}
+		} else if(6 == rsscanf(buf, "instrumentline %x %x %x %x %x %x",
+			&i1,
+			&i2,
+			&cmd[0],
+			&param[0], &cmd[1], &param[1])) {
+
+			instrument[i1].line[i2].cmd = cmd[0];
+			instrument[i1].line[i2].param = param[0];
+			instrument[i1].line[i2].cmd2 = cmd[1];
+			instrument[i1].line[i2].param2 = param[1];
+			if(instrument[i1].length <= i2) instrument[i1].length = i2 + 1;
 		} else if(4 == rsscanf(buf, "instrumentline %x %x %x %x",
 			&i1,
 			&i2,
 			&cmd[0],
 			&param[0])) {
+			// Old format with single oscillator per channel
+			// Set second oscillator to volume = 0 so it doesn't disturb us
 
 			instrument[i1].line[i2].cmd = cmd[0];
 			instrument[i1].line[i2].param = param[0];
+			instrument[i1].line[i2].cmd2 = 'v';
+			instrument[i1].line[i2].param2 = 00;
 			if(instrument[i1].length <= i2) instrument[i1].length = i2 + 1;
 		} else if(1 == rsscanf(buf, "tracklength %x", &i)) {
 			tracklen = i;
@@ -242,6 +259,8 @@ void clear_song()
 		instrument[i].length = 1;
 		instrument[i].line[0].cmd = '0';
 		instrument[i].line[0].param = 0;
+		instrument[i].line[0].cmd2 = '0';
+		instrument[i].line[0].param2 = 0;
 	}
 	memset(tracking, 0, sizeof(tracking));
 	memset(song, 0, sizeof(song));

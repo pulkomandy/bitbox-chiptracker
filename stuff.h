@@ -35,6 +35,8 @@ struct track {
 struct instrline {
 	u8			cmd;
 	u8			param;
+	u8			cmd2;
+	u8			param2;
 };
 
 struct instrument {

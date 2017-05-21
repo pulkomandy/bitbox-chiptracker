@@ -3,6 +3,8 @@
 #include "lib/chiptune/player.h"
 #include "lib/chiptune/player_internals.h"
 
+#include <string.h>
+
 //static u16 callbackwait;
 
 volatile u8 test;
@@ -23,10 +25,10 @@ struct instrument instrument[NINST];
 struct trackline tracking[NTRACKLINE];
 struct songline song[256];
 
-struct channel channel[4];
+struct channel channel[8];
 
 void silence() {
-	for(u8 i = 0; i < 4; i++) {
+	for(u8 i = 0; i < 8; i++) {
 		osc[i].volume = 0;
 		channel[i].volumed = 0;
 	}
@@ -52,23 +54,26 @@ void readinstr(uint8_t num, uint8_t pos, u8 *il) {
 	if(pos >= instrument[num].length) {
 		il[0] = 0;
 		il[1] = 0;
+		il[2] = 0;
+		il[3] = 0;
 	} else {
 		il[0] = instrument[num].line[pos].cmd;
 		il[1] = instrument[num].line[pos].param;
+
+		il[2] = instrument[num].line[pos].cmd2;
+		il[3] = instrument[num].line[pos].param2;
 	}
 }
 
 
 void myruncmd(u8 ch, u8 cmd, u8 param, u8 context) {
-	// TODO:  bitcrush like in bitbox/lib/chiptune.c
+	if (context == 2)
+		ch += 4;
+
 	switch(cmd) {
+		// Commands affecting channel
 		case 0:
 			channel[ch].inum = 0;
-			break;
-		case 'b':
-			osc[ch].bitcrush = param & 0x7;
-		case 'd':
-			osc[ch].duty = param << 8;
 			break;
 		case 'f':
 			channel[ch].volumed = param;
@@ -91,12 +96,6 @@ void myruncmd(u8 ch, u8 cmd, u8 param, u8 context) {
 			else 
 				songspeed = param;
 			break;
-		case 'v':
-			osc[ch].volume = param;
-			break;
-		case 'w':
-			osc[ch].waveform = param;
-			break;
 		case '+':
 			channel[ch].inote = param + channel[ch].tnote - 12 * 4;
 			break;
@@ -112,6 +111,20 @@ void myruncmd(u8 ch, u8 cmd, u8 param, u8 context) {
 			}
 			channel[ch].vdepth = param >> 4;
 			channel[ch].vrate = param & 15;
+		break;
+
+		// Commands affecting oscillator
+		case 'b':
+			osc[ch].bitcrush = param & 0x7;
+			break;
+		case 'd':
+			osc[ch].duty = param << 8;
+			break;
+		case 'v':
+			osc[ch].volume = param;
+			break;
+		case 'w':
+			osc[ch].waveform = param;
 			break;
 	}
 }
@@ -126,6 +139,16 @@ void iedplonk(int note, int instr) {
 	channel[0].volumed = 0;
 	channel[0].dutyd = 0;
 	channel[0].vdepth = 0;
+
+	channel[4].tnote = note;
+	channel[4].inum = instr;
+	channel[4].iptr = 0;
+	channel[4].iwait = 0;
+	channel[4].bend = 0;
+	channel[4].bendd = 0;
+	channel[4].volumed = 0;
+	channel[4].dutyd = 0;
+	channel[4].vdepth = 0;
 }
 
 void startplaytrack(int t) {
@@ -133,6 +156,10 @@ void startplaytrack(int t) {
 	channel[1].tnum = t;
 	channel[2].tnum = 0;
 	channel[3].tnum = 0;
+	channel[4].tnum = t;
+	channel[5].tnum = t;
+	channel[6].tnum = 0;
+	channel[7].tnum = 0;
 	trackpos = 0;
 	songwait = 0;
 	playtrack = 1;
@@ -166,6 +193,9 @@ void playroutine() {			// called at 50 Hz
 							readsong(songpos, ch, tmp);
 							channel[ch].tnum = tmp[0];
 							channel[ch].transp = tmp[1];
+
+							channel[ch+4].tnum = tmp[0];
+							channel[ch+4].transp = tmp[1];
 						}
 						songpos++;
 					}
@@ -180,6 +210,7 @@ void playroutine() {			// called at 50 Hz
 						readtrack(channel[ch].tnum, trackpos, &tl);
 						if(tl.note) {
 							channel[ch].tnote = tl.note + channel[ch].transp;
+							channel[ch+4].tnote = tl.note + channel[ch+4].transp;
 							instr = channel[ch].lastinstr;
 						}
 						if(tl.instr) {
@@ -195,6 +226,16 @@ void playroutine() {			// called at 50 Hz
 							channel[ch].volumed = 0;
 							channel[ch].dutyd = 0;
 							channel[ch].vdepth = 0;
+
+							channel[ch+4].lastinstr = instr;
+							channel[ch+4].inum = instr;
+							channel[ch+4].iptr = 0;
+							channel[ch+4].iwait = 0;
+							channel[ch+4].bend = 0;
+							channel[ch+4].bendd = 0;
+							channel[ch+4].volumed = 0;
+							channel[ch+4].dutyd = 0;
+							channel[ch+4].vdepth = 0;
 						}
 						if(tl.cmd[0])
 							myruncmd(ch, tl.cmd[0], tl.param[0], 1);
@@ -210,19 +251,19 @@ void playroutine() {			// called at 50 Hz
 		}
 	}
 
-	for(ch = 0; ch < 4; ch++) {
+	for(ch = 0; ch < 8; ch++) {
 		s16 vol;
 		u16 duty;
 		u16 slur;
 
 		while(channel[ch].inum && !channel[ch].iwait) {
-			u8 il[2];
+			u8 il[4];
 
 			readinstr(channel[ch].inum, channel[ch].iptr, il);
 			channel[ch].iptr++;
 
 			//myruncmd(ch, packcmd(il[0]), il[1], 0);
-			myruncmd(ch, il[0], il[1], 0);
+			myruncmd(ch, ch < 4 ? il[0] : il[2], ch < 4 ? il[1] : il[3], 0);
 		}
 		if(channel[ch].iwait) channel[ch].iwait--;
 
@@ -275,5 +316,24 @@ void initchip() {
 	channel[2].inum = 0;
 	osc[3].volume = 0;
 	channel[3].inum = 0;
+	channel[4].inum = 0;
+	channel[5].inum = 0;
+	channel[6].inum = 0;
+	channel[7].inum = 0;
+
+	// Initialize the second set of oscillators to an "idle" value for backwards compatibility.
+	osc[4].volume = 0;
+	osc[5].volume = 0;
+	osc[6].volume = 0;
+	osc[7].volume = 0;
+
+	osc[4].freq = 0;
+	osc[4].phase = 0;
+	osc[5].freq = 0;
+	osc[5].phase = 0;
+	osc[6].freq = 0;
+	osc[6].phase = 0;
+	osc[7].freq = 0;
+	osc[7].phase = 0;
 }
 

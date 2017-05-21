@@ -229,6 +229,7 @@ int freqkey(int c) {
 	int f = -1;
 
 	if(c == '-' /*|| c == KEY_DC*/) return 0;
+	if(c == '=') return 12 * 9 + 2; // Stop oscillator (in instruments)
 	if(c > 0 && c < 256) {
 		s = strchr(keymap[0], c);
 		if(s) {
@@ -326,7 +327,7 @@ static void drawsonged(int x, int y, int height) {
 	}
 
 	if (songlen > height) {
-		scrollbar(x+27, y, height, songoffs, songlen);
+		scrollbar(x-1, y, height, songoffs, songlen);
 	}
 }
 
@@ -387,7 +388,7 @@ static void drawtracked(int x, int y, int height) {
 	}
 
 	if (tracklen > height) {
-		scrollbar(x+18, y, height, trackoffs, tracklen);
+		scrollbar(x-1, y, height, trackoffs, tracklen);
 	}
 }
 
@@ -414,7 +415,9 @@ static void drawinstred(int x, int y, int height) {
 			sprintf(buf, "%02x: %c ", i, instrument[currinstr].line[i].cmd);
 			addstr(buf);
 			if(instrument[currinstr].line[i].cmd == '+' || instrument[currinstr].line[i].cmd == '=') {
-				if(instrument[currinstr].line[i].param) {
+				if(instrument[currinstr].line[i].param > 83)
+					sprintf(buf, "---");
+				else if(instrument[currinstr].line[i].param) {
 					sprintf(buf, "%s%d",
 						notenames[(instrument[currinstr].line[i].param - 1) % 12],
 						(instrument[currinstr].line[i].param - 1) / 12);
@@ -428,6 +431,28 @@ static void drawinstred(int x, int y, int height) {
 				buf[3] = 0;
 			}
 			addstr(buf);
+
+			sprintf(buf, " %c ", instrument[currinstr].line[i].cmd2);
+			addstr(buf);
+
+			if(instrument[currinstr].line[i].cmd2 == '+' || instrument[currinstr].line[i].cmd2 == '=') {
+				if(instrument[currinstr].line[i].param2 > 83)
+					sprintf(buf, "---");
+				else if(instrument[currinstr].line[i].param2) {
+					sprintf(buf, "%s%d",
+						notenames[(instrument[currinstr].line[i].param2 - 1) % 12],
+						(instrument[currinstr].line[i].param2 - 1) / 12);
+				} else {
+					buf[0] = buf[1] = buf[2] = '-';
+					buf[3] = 0;
+				}
+			} else {
+				hexstr(buf, instrument[currinstr].line[i].param2);
+				buf[2] = '-';
+				buf[3] = 0;
+			}
+			addstr(buf);
+
 			attrset(A_NORMAL);
 			j++;
 		}
@@ -436,7 +461,7 @@ static void drawinstred(int x, int y, int height) {
 	while (j < height)
 	{
 		move(y + j, x + 0);
-		addstr("         ");
+		addstr("               ");
 		j++;
 	}
 }
@@ -655,7 +680,7 @@ if ((c = getch()) != KEY_ERR)
 					if(trackx < 8) trackx++;
 					break;
 				case 2:
-					if((mode&MODE_EDIT) && instrx < 2) instrx++;
+					if((mode&MODE_EDIT) && instrx < 5) instrx++;
 					break;
 			}
 			break;
@@ -749,6 +774,8 @@ if ((c = getch()) != KEY_ERR)
 						switch(instrx) {
 							case 1: SETHI(instrument[currinstr].line[instry].param, x); break;
 							case 2: SETLO(instrument[currinstr].line[instry].param, x); break;
+							case 4: SETHI(instrument[currinstr].line[instry].param2, x); break;
+							case 5: SETLO(instrument[currinstr].line[instry].param2, x); break;
 						}
 					}
 					if(currtab == 1 && trackx > 0) {
@@ -777,9 +804,14 @@ if ((c = getch()) != KEY_ERR)
 				x = freqkey(c);
 				if(x >= 0) {
 					if(currtab == 2
-					&& instrx
+					&& instrx && instrx < 3
 					&& (instrument[currinstr].line[instry].cmd == '+' || instrument[currinstr].line[instry].cmd == '=')) {
 						instrument[currinstr].line[instry].param = x;
+					}
+					if(currtab == 2
+					&& instrx > 3
+					&& (instrument[currinstr].line[instry].cmd2 == '+' || instrument[currinstr].line[instry].cmd2 == '=')) {
+						instrument[currinstr].line[instry].param2 = x;
 					}
 					if(currtab == 1 && !trackx) {
 						track(currtrack,tracky)->note = x;
@@ -796,6 +828,11 @@ if ((c = getch()) != KEY_ERR)
 				if(currtab == 2 && instrx == 0) {
 					if(strchr(validcmds, c)) {
 						instrument[currinstr].line[instry].cmd = c;
+					}
+				}
+				if(currtab == 2 && instrx == 3) {
+					if(strchr(validcmds, c)) {
+						instrument[currinstr].line[instry].cmd2 = c;
 					}
 				}
 				if(currtab == 1 && (trackx == 3 || trackx == 6 || trackx == 9)) {
@@ -876,7 +913,7 @@ static void drawgui() {
 	char buf[32];
 	int songcols[] = {0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22};
 	int trackcols[] = {0, 4, 5, 7, 8, 9, 11, 12, 13};
-	int instrcols[] = {0, 2, 3};
+	int instrcols[] = {0, 2, 3, 6, 8, 9};
 
 	if (mode & MODE_EDIT)
 	{
@@ -920,7 +957,7 @@ static void drawgui() {
 
 	hexstr(buf, currinstr);
 	mvaddstr(5, 58, buf);
-	drawinstred(51, 6, LINES - 12);
+	drawinstred(50, 6, LINES - 12);
 	
 	hexstr(buf, octave);
 	mvaddstr(5, COLUMNS - 7, buf);
@@ -963,7 +1000,7 @@ static void drawgui() {
 			break;
 		case 2:
 			cy = 6 + instry - instroffs;
-			cx = 49 + 6 + instrcols[instrx];
+			cx = 48 + 6 + instrcols[instrx];
 			break;
 		}
 
